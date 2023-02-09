@@ -148,6 +148,10 @@ hozon.tofile('fwflux10dy-1948-1000times.dat')
 del temp,hozon
 gc.collect()
 
+
+### ここまでのループでうまく行ったら、ここより下のWhileループを修正してforループにする
+### PythonではWhileよりforループの方が一般的とのこと。
+
 ### Momentum fluxの計算
 ### uflux10dy.dat vflux10dy.dataを使う
 
