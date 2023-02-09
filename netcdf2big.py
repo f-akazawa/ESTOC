@@ -52,6 +52,7 @@ with open('prate10dy.dat',mode='a') as f:
             data_mean_10dy2 = pratenc.loc[start2:end2].mean(dim='time')
             data_mean_10dy3 = pratenc.loc[start3:end3].mean(dim='time')
 
+
             #月毎に10日区切りで3つ作ったら保存用の配列に代入
             temp = np.stack([data_mean_10dy1,data_mean_10dy2,data_mean_10dy3],0) # tempは1ヶ月分
             month10dy = np.append(month10dy,temp,axis=0) # 1ヶ月分のtempを順番にappendしていく（70年分）
