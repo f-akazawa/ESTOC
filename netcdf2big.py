@@ -70,6 +70,7 @@ del month10dy,pratenc,prateyear,temp
 
 gc.collect()
 
+#### ここで1つファイルできてる
 
 # 上と同様にlhtfl.sfc.gauss.XXXX.ncを読み込んでバイナリファイルlhtfl10dy.datに保存
 lhtflyear = xr.DataArray()
