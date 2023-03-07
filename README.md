@@ -32,7 +32,7 @@ python dat2interpol2d.py
 
 # Note
 
-NC�t�@�C���̓J�����h�f�B���N�g���ɔz�u���邱�ƁB
+NCファイルはカレントディレクトリに置く必要があります
 
 # Author
 
