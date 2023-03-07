@@ -7,7 +7,7 @@
 * python3.x
 * scipy
 * xarray
-
+```
 NETCDF files
 dswrf.sfc.gauss.yyyy.nc
 dlwrf.sfc.gauss.yyyy.nc
@@ -22,7 +22,7 @@ prate.sfc.gauss.yyyy.nc
 Binary files
 landft06.big
 prev_climate7902nc2.big
-
+```
 # Usage
 
 ```bash
@@ -32,7 +32,7 @@ python dat2interpol2d.py
 
 # Note
 
-NCƒtƒ@ƒCƒ‹‚ÍƒJƒŒƒ“ƒhƒfƒBƒŒƒNƒgƒŠ‚É”z’u‚·‚é‚±‚ÆB
+NCï¿½tï¿½@ï¿½Cï¿½ï¿½ï¿½ÍƒJï¿½ï¿½ï¿½ï¿½ï¿½hï¿½fï¿½Bï¿½ï¿½ï¿½Nï¿½gï¿½ï¿½ï¿½É”zï¿½uï¿½ï¿½ï¿½é‚±ï¿½ÆB
 
 # Author
 
