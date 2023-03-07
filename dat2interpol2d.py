@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[97]:
 
 
 # この時点で必要なデータ\n",
@@ -19,7 +19,7 @@
 # 元ソースは94 x 192 > 178 x 360に補完している"
 
 
-# In[2]:
+# In[98]:
 
 
 import xarray as xr
@@ -35,28 +35,46 @@ import cartopy.feature as cfeature
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from scipy.interpolate import griddata
 import gc
-# 緯度経度は実際の数値を入れる必要がある\n",
+# 緯度経度は実際の数値を入れる
+# 元データNCファイルの緯度経度の範囲を得る
+# とりあえずprateファイルを読む、指摘されたら変えること
+ncep_param = xr.open_dataset('01_ESTOC_ForcingData/NCEP_NCAR_Forcing/NCEP/prate.sfc.gauss.1948.nc')
+
+# ncep_paramにArrayとして保存されるので以下の様に取り出して値を得る
+# print(ncep_param['lon'],min()) で最小、max()で最大が取れる
+# print(ncep_param['lon'].actual_range)でも取れるが、正負の順番だったりして必ずしも先に最小が来るとは限らない。。。
+ncep_lat_min = ncep_param['lat'].min()
+ncep_lat_max = ncep_param['lat'].max()
+ncep_lon_min = ncep_param['lon'].min()
+ncep_lon_max = ncep_param['lon'].max()
+
 # latitudeはStart-89.5、End89.5、Step数で元データの94分割になるように調整\n",
 #orig_lat = np.arange(-89.5,89.5,1.905)
 # 2022/1/26土居さんより依頼でStart/End-90,90に変更＞内挿後の値が180になるようにするため
-orig_lat = np.arange(-90,90,1.915)
+##orig_lat = np.arange(-90,90,1.915)
+step = (abs(ncep_lat_min) + abs(ncep_lat_max)) / 94
+orig_lat = np.arange(ncep_lat_min,ncep_lat_max,step)
 
 # longitudeはStart-180,End180,Stepで192分割に調整\n",
-orig_lon = np.arange(-180,180,1.875)
+##orig_lon = np.arange(-180,180,1.875)
+step = (abs(ncep_lon_min) + abs(ncep_lon_max)) / 192
+orig_lon = np.arange(ncep_lon_min,ncep_lon_max,step)
+
 
 # mgridは最初、最後、間隔を指定するので間隔1のグリッドが出来る、返り値がmeshgridと縦横は逆になるので注意\n",
 # lat,lonは実際の座標値を使い、92*194 > 178*360に変更する（Stepは1）\n",
 #xi,yi = np.mgrid[-180:180:1,-89.5:89.5:1]
-xi,yi = np.mgrid[-180:180:1,-90:90:1]
+##xi,yi = np.mgrid[-180:180:1,-90:90:1]
+xi,yi = np.mgrid[0:360:1,-90:90:1]
 
 
-# In[3]:
+# In[99]:
 
 
 ### Fresh water fluxの計算
 
 
-# In[4]:
+# In[100]:
 
 
 landft06 = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/land.ft06.big' # pythonの場合reshape(94,192)で読み込む\n",
@@ -82,7 +100,7 @@ prate = np.fromfile('prate10dy.dat').reshape(2664,94,192)
 lhtfl = np.fromfile('lhtfl10dy.dat').reshape(2664,94,192)
 
 
-# In[5]:
+# In[101]:
 
 
 #ESTOCではうみだけど、NCEPでは陸地の部分
@@ -102,7 +120,7 @@ while index < 2664:
     index += 1
 
 
-# In[6]:
+# In[102]:
 
 
 #ここで一度にする、陸地をダミーデータにしておく
@@ -115,7 +133,7 @@ while index < 2664:
 #使って良いデータestocのマスクで１のところだけ
 
 
-# In[8]:
+# In[103]:
 
 
 # freshのサイズをESTOCに合わせる内挿処理
@@ -128,7 +146,9 @@ temp = []
 while days < 2664:
     slicedays = readdata[days,:,:]
     zi = interpolate.interp2d(orig_lon,orig_lat,slicedays,kind='linear')(xi[:,0],yi[0,:])
-
+    #zi = interpolate.interp2d(orig_lon,orig_lat,slicedays,kind='linear')
+    #zi = zi(xi[:,0],yi[0,:])
+    
     interp_fresh = np.append(temp,zi).reshape([days+1,180,360])
 
     temp = interp_fresh
@@ -136,10 +156,26 @@ while days < 2664:
     days += 1
 
 
-print('end')
+# In[106]:
 
 
-# In[9]:
+# 画面端の処理をするために横に1列増やす
+days = 0
+temp = []
+
+while days < 2664:
+    slicedays = interp_fresh[days,:,:]
+    insertzero = slicedays[:,0] # 0番目の列
+    zi = ( np.hstack((slicedays,insertzero.reshape(-1,1))) ) # ここで180 x 361になっている
+    fresh361 = np.append(temp,zi).reshape(days+1,180,361)
+    
+    temp = fresh361
+    
+    days += 1
+    
+
+
+# In[105]:
 
 
 # ESTOCランドマスク作成
@@ -161,7 +197,7 @@ estoclandmask = (estocmask == 0)
 #plt.imshow(estoclandmask)
 
 
-# In[11]:
+# In[112]:
 
 
 # NCEPランドマスク作成
@@ -170,7 +206,7 @@ estoclandmask = (estocmask == 0)
 rev_iland = np.where(iland == 0 ,1,0)
 
 
-# In[12]:
+# In[113]:
 
 
 # ESTOCランドマスクに合わせる内挿処理
@@ -178,7 +214,7 @@ rev_iland = np.where(iland == 0 ,1,0)
 ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,0],yi[0,:])
 
 
-# In[16]:
+# In[128]:
 
 
 ######################################################
@@ -192,12 +228,12 @@ ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,
 ######################################################
 
 
-# In[45]:
+# In[134]:
 
 
-resmax = 0.0
+#estoclandmask は陸地True,海FalseのBool配列なので海0、陸1に直す
+estocweight = np.where(estoclandmask == True,1,0)
 
-#landindex =  np.where(estoclandmask == True)
 landindex =  np.where(estocmask != 0) and np.where(ncepmask != 1)
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
 # landindex[0] = latitude
@@ -206,34 +242,20 @@ landindex =  np.where(estocmask != 0) and np.where(ncepmask != 1)
 for index in range(2664): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
     for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了
         for i,lat in enumerate(landindex[0]): # i = loop index
+            resmax = -100.0
             lon = landindex[1][i]
-            if lat > 1 and lat < 180 and lon < 359: # 画面端は処理できないので除外
+            if lat >= 1 and lat < 179 and lon < 359: # 画面端は処理できないので除外
                 # lat,lon(landindex[1][i])が陸地なので4点計算する
-                res = abs(interp_fresh[index,lat,lon]-0.25*(interp_fresh[index,lat-1,lon]+interp_fresh[index,lat+1,lon]+interp_fresh[index,lat,lon-1]+interp_fresh[index,lat,lon+1]))
-                interp_fresh[index,lat,lon] = 0.25*(interp_fresh[index,lat-1,lon]+interp_fresh[index,lat+1,lon]+interp_fresh[index,lat,lon-1]+interp_fresh[index,lat,lon+1])
+                #res = abs(fresh361[index,lat,lon]-0.25*(fresh361[index,lat-1,lon]+fresh361[index,lat+1,lon]+fresh361[index,lat,lon-1]+fresh361[index,lat,lon+1]))
+                fresh361[index,lat,lon] = 0.25*(fresh361[index,lat-1,lon]*estocweight[lat,lon]+fresh361[index,lat+1,lon]*estocweight[lat,lon]+fresh361[index,lat,lon-1]*estocweight[lat,lon]+fresh361[index,lat,lon+1]*estocweight[lat,lon])
+                #interp_fresh[index,lat,lon] = 0.25*(interp_fresh[index,lat-1,lon]+interp_fresh[index,lat+1,lon]+interp_fresh[index,lat,lon-1]+interp_fresh[index,lat,lon+1])
                 resmax = max(resmax,res)
-
-            # この時点でのlat,lon(landindex[1][i])が陸地なので4点計算する
-            # 画面端の処理
-            if lat == 0:
-                for lon in range(360-1):
-                    interp_fresh[360,lat,lon] = interp_fresh[0,lat,lon]
-                    if lon == 358: # 0スタートなので1少ない
-                        interp_fresh[0,lat,lon] = interp_fresh[359,lat,lon]
-
+        
             # 差分が範囲超えたら抜ける
-            if 0.0000001 > resmax:
-                break
-            else: # fresh > res にコピーしないとだめ
-                res = interp_fresh
-        else:
-            continue
-        break
-    else:
-        continue
-    break
+        if 0.0000001 > resmax:
+            break
 
-interp_fresh.tofile('fwflux10dy-1948-2021.dat')
+fresh361[:,:,:360].tofile('fwflux10dy-1948-2021.dat')
 print('end')
 
 
