@@ -19,7 +19,7 @@
 # 元ソースは94 x 192 > 178 x 360に補完している"
 
 
-# In[14]:
+# In[2]:
 
 
 import xarray as xr
@@ -47,16 +47,10 @@ orig_lon = np.array(ncep_param['lon'])
 xi,yi = np.mgrid[0.5:360:1,-89.5:90:1]
 
 
-# In[3]:
+# In[13]:
 
 
-### Fresh water fluxの計算
-
-
-# In[4]:
-
-
-landft06 = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/land.ft06.big' # pythonの場合reshape(94,192)で読み込む\n",
+#landft06 = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/land.ft06.big' # pythonの場合reshape(94,192)で読み込む\n",
 prevclimate = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/prev_climate7902nc2.big'
 
 # land.06.ft.big読み込み\n",
@@ -65,8 +59,10 @@ prevclimate = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/prev_clima
 # python で読むと0と32831が94*192の配列に入っている。\n",
 # 0が海、1(32831)は陸\n",
 # landmask用に必要
-# 過去の遺物なので今後はコレを使わないように変更する
-iland = np.fromfile(landft06,dtype='int32').reshape(94,192)
+# 過去の遺物なので今後はlandft06は使わないように変更する
+#iland = np.fromfile(landft06,dtype='int32').reshape(94,192)
+
+iland = np.array(ncep_param['land'])[0,:,:]
 
 # prev.climate7902.nc2.big読み込み\n",
 # 01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/prev_climate7902nc2.big\n",
