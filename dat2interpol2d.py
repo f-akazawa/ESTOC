@@ -47,7 +47,7 @@ orig_lon = np.array(ncep_param['lon'])
 xi,yi = np.mgrid[0.5:360:1,-89.5:90:1]
 
 
-# In[13]:
+# In[15]:
 
 
 #landft06 = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/land.ft06.big' # pythonの場合reshape(94,192)で読み込む\n",
@@ -76,7 +76,7 @@ prate = np.fromfile('prate10dy.dat').reshape(2664,94,192)
 lhtfl = np.fromfile('lhtfl10dy.dat').reshape(2664,94,192)
 
 
-# In[5]:
+# In[16]:
 
 
 #ESTOCでは海だけど、NCEPでは陸地の部分
@@ -96,7 +96,7 @@ while index < 2664:
     index += 1
 
 
-# In[15]:
+# In[17]:
 
 
 # freshのサイズをESTOCに合わせる内挿処理
@@ -119,7 +119,7 @@ while days < 2664:
     days += 1
 
 
-# In[16]:
+# In[18]:
 
 
 # 画面端の処理をするために横に1列増やす
@@ -138,7 +138,7 @@ while days < 2664:
     
 
 
-# In[17]:
+# In[19]:
 
 
 # ESTOCランドマスク作成
@@ -159,7 +159,7 @@ estocmask = np.append(estocmask,bottomsouth,axis=0)
 estoclandmask = (estocmask == 0)
 
 
-# In[18]:
+# In[20]:
 
 
 # NCEPランドマスク作成
@@ -168,7 +168,7 @@ estoclandmask = (estocmask == 0)
 rev_iland = np.where(iland == 0 ,1,0)
 
 
-# In[19]:
+# In[21]:
 
 
 # ESTOCランドマスクに合わせる内挿処理
@@ -176,7 +176,7 @@ rev_iland = np.where(iland == 0 ,1,0)
 ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,0],yi[0,:])
 
 
-# In[20]:
+# In[24]:
 
 
 ######################################################
@@ -188,18 +188,17 @@ ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,
 #使って良いデータestocのマスクで１のところだけ
 ######################################################
 ######################################################
-
-
-# In[53]:
-
-
 #estoclandmask は陸地True,海FalseのBool配列なので海1、陸0に直す
 estocweight = np.where(estoclandmask == True,0,1)
 
 #######
-mask = ((estocweight == 1) & (ncepmask != 1))
+mask = ((estocweight == 1) & (ncepmask < 0.9999))
 landindex =  np.where(mask == 1)
 ######
+
+
+# In[53]:
+
 
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
 # landindex[0] = latitude
