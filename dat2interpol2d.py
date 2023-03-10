@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[1]:
+
 
 # この時点で必要なデータ\n",
 #####\n",
@@ -15,6 +17,9 @@
 # prev_climate7902.nc2.bigを読み込んだ climate (12,94,192)\n",
 #####\n",
 # 元ソースは94 x 192 > 178 x 360に補完している"
+
+
+# In[14]:
 
 
 import xarray as xr
@@ -32,39 +37,24 @@ from scipy.interpolate import griddata
 import gc
 # 緯度経度は実際の数値を入れる
 # 元データNCファイルの緯度経度の範囲を得る
-# とりあえずprateファイルを読む、指摘されたら変えること
-ncep_param = xr.open_dataset('01_ESTOC_ForcingData/NCEP_NCAR_Forcing/NCEP/prate.sfc.gauss.1948.nc')
+ncep_param = xr.open_dataset('01_ESTOC_ForcingData/NCEP_NCAR_Forcing/NCEP/land.sfc.gauss.nc')
 
 # ncep_paramにArrayとして保存されるので以下の様に取り出して値を得る
-# print(ncep_param['lon'],min()) で最小、max()で最大が取れる
-# print(ncep_param['lon'].actual_range)でも取れるが、正負の順番だったりして必ずしも先に最小が来るとは限らない。。。
-ncep_lat_min = ncep_param['lat'].min()
-ncep_lat_max = ncep_param['lat'].max()
-ncep_lon_min = ncep_param['lon'].min()
-ncep_lon_max = ncep_param['lon'].max()
-
-# latitudeはStart-89.5、End89.5、Step数で元データの94分割になるように調整\n",
-#orig_lat = np.arange(-89.5,89.5,1.905)
-# 2022/1/26土居さんより依頼でStart/End-90,90に変更＞内挿後の値が180になるようにするため
-##orig_lat = np.arange(-90,90,1.915)
-step = (abs(ncep_lat_min) + abs(ncep_lat_max)) / 94
-orig_lat = np.arange(ncep_lat_min,ncep_lat_max,step)
-
-# longitudeはStart-180,End180,Stepで192分割に調整\n",
-##orig_lon = np.arange(-180,180,1.875)
-step = (abs(ncep_lon_min) + abs(ncep_lon_max)) / 192
-orig_lon = np.arange(ncep_lon_min,ncep_lon_max,step)
-
+orig_lat = np.array(ncep_param['lat'])[::-1] # マイナス値が後になっているので反転する
+orig_lon = np.array(ncep_param['lon'])
 
 # mgridは最初、最後、間隔を指定するので間隔1のグリッドが出来る、返り値がmeshgridと縦横は逆になるので注意\n",
-# lat,lonは実際の座標値を使い、92*194 > 178*360に変更する（Stepは1）\n",
-#xi,yi = np.mgrid[-180:180:1,-89.5:89.5:1]
-##xi,yi = np.mgrid[-180:180:1,-90:90:1]
-xi,yi = np.mgrid[0:360:1,-90:90:1]
+xi,yi = np.mgrid[0.5:360:1,-89.5:90:1]
 
+
+# In[3]:
 
 
 ### Fresh water fluxの計算
+
+
+# In[4]:
+
 
 landft06 = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/land.ft06.big' # pythonの場合reshape(94,192)で読み込む\n",
 prevclimate = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/prev_climate7902nc2.big'
@@ -75,6 +65,7 @@ prevclimate = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/prev_clima
 # python で読むと0と32831が94*192の配列に入っている。\n",
 # 0が海、1(32831)は陸\n",
 # landmask用に必要
+# 過去の遺物なので今後はコレを使わないように変更する
 iland = np.fromfile(landft06,dtype='int32').reshape(94,192)
 
 # prev.climate7902.nc2.big読み込み\n",
@@ -89,11 +80,14 @@ prate = np.fromfile('prate10dy.dat').reshape(2664,94,192)
 lhtfl = np.fromfile('lhtfl10dy.dat').reshape(2664,94,192)
 
 
-#ESTOCではうみだけど、NCEPでは陸地の部分
-#NCEPで１どにしたときに陸地の場所
-# 内挿する前にilandとclima = freshを使ってマスクする必要あり\n",
+# In[5]:
+
+
+#ESTOCでは海だけど、NCEPでは陸地の部分
+#NCEPで１度にしたときに陸地の場所
+# 内挿する前にilandとclima = freshを使ってマスクする必要あり",
 # prate と lhtflで要素ごとに計算\n",
-# 以下の数式とfreshの命名規則はFotran元コードから\n",
+# 以下の数式とfreshの命名規則はFotran元コードから"
 fresh = prate - lhtfl/2.5e6
 
 # ilandで陸地だったらfreshの同位置を０にする\n",
@@ -106,14 +100,7 @@ while index < 2664:
     index += 1
 
 
-#ここで一度にする、陸地をダミーデータにしておく
-# 一旦内挿してサイズを合わせる
-# ESTOCで１とNCEPで１以外のときループさせる
-
-#マスクの１℃１℃とデータの入った１℃１℃ができる
-#NCEPのマスクデータをみて１以外のところは０にする
-#ESToCが１でNCEPが１以外のところをループ
-#使って良いデータestocのマスクで１のところだけ
+# In[15]:
 
 
 # freshのサイズをESTOCに合わせる内挿処理
@@ -136,6 +123,9 @@ while days < 2664:
     days += 1
 
 
+# In[16]:
+
+
 # 画面端の処理をするために横に1列増やす
 days = 0
 temp = []
@@ -152,14 +142,17 @@ while days < 2664:
     
 
 
+# In[17]:
+
+
 # ESTOCランドマスク作成
 # （155 x 360) 75S-80N 上下にダミーの海を足す
 
-# 元データは75Sから80Nまでなので上下90まで陸地で埋める
-topnorth = np.full((10,360),99)
-bottomsouth = np.full((15,360),99)
+# 元データは75Sから80Nまでなので上下90まで陸地0で埋める
+topnorth = np.full((10,360),0)
+bottomsouth = np.full((15,360),0)
 
-# 読みこんで、フリップ
+# ESTOCマスクデータを読みこんで、フリップ
 data = np.loadtxt('kmt_data.txt',dtype='int') # 元がテキストなのでキャストも必要
 estocmask = np.flipud(data) # flipdで上下反転
 
@@ -168,7 +161,9 @@ estocmask = np.append(topnorth,estocmask,axis=0)
 estocmask = np.append(estocmask,bottomsouth,axis=0)
 
 estoclandmask = (estocmask == 0)
-#plt.imshow(estoclandmask)
+
+
+# In[18]:
 
 
 # NCEPランドマスク作成
@@ -177,9 +172,16 @@ estoclandmask = (estocmask == 0)
 rev_iland = np.where(iland == 0 ,1,0)
 
 
+# In[19]:
+
+
 # ESTOCランドマスクに合わせる内挿処理
 
 ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,0],yi[0,:])
+
+
+# In[20]:
+
 
 ######################################################
 ######################################################
@@ -190,6 +192,9 @@ ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,
 #使って良いデータestocのマスクで１のところだけ
 ######################################################
 ######################################################
+
+
+# In[53]:
 
 
 #estoclandmask は陸地True,海FalseのBool配列なので海1、陸0に直す
@@ -214,8 +219,7 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             if lat >= 1 and lat < 179 and lon < 359: # 画面端は処理できないので除外
                 # lat,lon(landindex[1][i])が陸地なので4点計算する
                 #res = abs(fresh361[index,lat,lon]-0.25*(fresh361[index,lat-1,lon]+fresh361[index,lat+1,lon]+fresh361[index,lat,lon-1]+fresh361[index,lat,lon+1]))
-                fresh361[index,lat,lon] = (fresh361_old[index,lat-1,lon]*estocweight[lat-1,lon]+fresh361_old[index,lat+1,lon]*estocweight[lat+1,lon]+fresh361_old[index,lat,lon-1]*estocweight[lat,lon-1]+fresh361_old[index,lat,lon+1]*estocweight[lat,lon+1])                /(estocweight[lat-1,lon]+estocweight[lat+1,lon]+estocweight[lat,lon-1]+estocweight[lat,lon+1] + 0.0000001 )                
-           
+                fresh361[index,lat,lon] = (fresh361_old[index,lat-1,lon]*estocweight[lat-1,lon]+fresh361_old[index,lat+1,lon]*estocweight[lat+1,lon]+fresh361_old[index,lat,lon-1]*estocweight[lat,lon-1]+fresh361_old[index,lat,lon+1]*estocweight[lat,lon+1])                /(estocweight[lat-1,lon]+estocweight[lat+1,lon]+estocweight[lat,lon-1]+estocweight[lat,lon+1] + 0.0000001 )                         
                 res = abs(fresh361[index,lat,lon] - fresh361_old[index,lat,lon])
                 
                 resmax = max(resmax,res)
@@ -227,7 +231,9 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             fresh361_old[index,:,:] = fresh361[index,:,:]
 
 fresh361[:,:,:360].tofile('fwflux10dy-1948-2021.dat')
-print('end')
+
+
+# In[31]:
 
 
 ## ガベージコレクタ
@@ -236,6 +242,9 @@ gc.collect()
 
 ### Momentum fluxの計算
 ### uflux10dy.dat vflux10dy.dataを使う
+
+
+# In[32]:
 
 
 # uflx
@@ -259,6 +268,9 @@ while index < 2664:
     index += 1
 
 
+# In[33]:
+
+
 # vfluxを内挿してESTOCサイズに合わせる。
 # 内挿する
 readdata = xr.DataArray(vflx,dims=['time','lat','lon']) # ファイルを読み込んでXArrayに入れる\n",
@@ -278,6 +290,8 @@ while days < 2664:
     days += 1
 
 
+# In[34]:
+
 
 # 画面端の処理をするために横に1列増やす
 days = 0
@@ -294,6 +308,13 @@ while days < 2664:
     days += 1
     
 
+
+# In[35]:
+
+
+# landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
+# landindex[0] = latitude
+# landindex[1] = longitude
 
 vflx361_old = vflx361 # 比較用コピー作成
 
@@ -317,10 +338,18 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             vlfx361_old[index,:,:] = vflx361[index,:,:]
 
 vflx361[:,:,:360].tofile('nc1ex1deg.vflx10dy.1948-2021.dat')
+print('end')
+
+
+# In[36]:
+
 
 ## gabage collector
 del temp,interp_vflx,vflx,vflx361,vflx361_old
 gc.collect()
+
+
+# In[37]:
 
 
 # uflxをESTOCサイズに合わせるため内挿する
@@ -341,6 +370,13 @@ while days < 2664:
     days += 1
 
 
+
+print('end')
+
+
+# In[38]:
+
+
 # 画面端の処理をするために横に1列増やす
 days = 0
 temp = []
@@ -356,6 +392,13 @@ while days < 2664:
     days += 1
     
 
+
+# In[39]:
+
+
+# landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
+# landindex[0] = latitude
+# landindex[1] = longitude
 
 uflx361_old = uflx361 # 比較用コピー作成
 
@@ -379,13 +422,22 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             ulfx361_old[index,:,:] = uflx361[index,:,:]
 
 uflx361[:,:,:360].tofile('nc1ex1deg.uflx10dy.1948-2021.dat')
+print('end')
+
+
+# In[40]:
+
 
 #ガベージコレクタ\n",
 del temp,interp_uflx,uflx361,uflx361_old,uflx,uflux
 gc.collect()
 
-
 ### Net heat fluxの計算
+
+
+# In[41]:
+
+
 # dswrf
 dsr = np.fromfile('dswrf10dy.dat').reshape(2664,94,192)
 # ulwrf
@@ -400,6 +452,11 @@ sh = np.fromfile('shtfl10dy.dat').reshape(2664,94,192)
 lh = np.fromfile('lhtfl10dy.dat').reshape(2664,94,192)
 
 
+# In[42]:
+
+
+# landmask
+# landmask
 # Net heat fluxは以下の式
 gh = (dsr - usr + dlr - ulr) - (sh + lh)
 
@@ -412,6 +469,9 @@ index = 0
 while index < 2664:
     gh[index,:,:][landmask == True] = 0
     index += 1
+
+
+# In[43]:
 
 
 # ESTOCのサイズに合わせるため内挿する
@@ -432,6 +492,13 @@ while days < 2664:
     days += 1
 
 
+
+print('end')
+
+
+# In[44]:
+
+
 # 画面端の処理をするために横に1列増やす
 days = 0
 temp = []
@@ -447,6 +514,13 @@ while days < 2664:
     days += 1
     
 
+
+# In[45]:
+
+
+# landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
+# landindex[0] = latitude
+# landindex[1] = longitude
 
 gh361_old = gh361 # 比較用コピー作成
 
@@ -470,14 +544,23 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             gh361_old[index,:,:] = gh361[index,:,:]
 
 gh361[:,:,:360].tofile('nc1ex1deg.heatf10dy.1948-2021.dat')
+print('end')
+
+
+# In[46]:
 
 
 #ガベージコレクタ\n",
 del temp,interp_gh,gh361,gh361_old,gh
 gc.collect()
-
-
 ### Net solar fluxの計算
+
+
+# In[47]:
+
+
+## landmask
+
 snr = dsr - usr
 
 
@@ -489,6 +572,9 @@ index = 0
 while index < 2664:
     snr[index,:,:][landmask == True] = 0
     index += 1
+
+
+# In[48]:
 
 
 ## ESTOCサイズにするために内挿
@@ -509,6 +595,12 @@ while days < 2664:
     days += 1
 
 
+print('end')
+
+
+# In[49]:
+
+
 # 画面端の処理をするために横に1列増やす
 days = 0
 temp = []
@@ -524,6 +616,13 @@ while days < 2664:
     days += 1
 
 
+# In[ ]:
+
+
+# landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
+# landindex[0] = latitude
+# landindex[1] = longitude
+
 snr361_old = snr361 # 比較用コピー作成
 
 for index in range(2664): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
@@ -538,7 +637,6 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
                 res = abs(snr361[index,lat,lon] - snr361_old[index,lat,lon])
                 
                 resmax = max(resmax,res)
-
             # 差分が範囲超えたら抜ける
         if 0.0000001 > resmax:
             break
@@ -546,3 +644,12 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             snr361_old[index,:,:] = snr361[index,:,:]
 
 snr361[:,:,:360].tofile('nc1ex1deg.snr10dy.1948-2021.dat')
+
+print('end')
+
+
+# In[ ]:
+
+
+
+
