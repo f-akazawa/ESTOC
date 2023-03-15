@@ -550,7 +550,7 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             #print('index=',index,'counter=',counter)
             break
         else:
-            print('index=',index)
+            #print('index=',index)
             gh361_old[index,:,:] = gh361[index,:,:]
 
 
