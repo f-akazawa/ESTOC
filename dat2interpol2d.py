@@ -143,14 +143,18 @@ temp = []
 while days < 2664:
     slicedays = readdata[days,:,:]
     zi = interpolate.interp2d(orig_lon,orig_lat,slicedays,kind='linear')(xi[:,0],yi[0,:])
-    #zi = interpolate.interp2d(orig_lon,orig_lat,slicedays,kind='linear')
-    #zi = zi(xi[:,0],yi[0,:])
-    
+   
     interp_fresh = np.append(temp,zi).reshape([days+1,180,360])
 
     temp = interp_fresh
 
     days += 1
+
+
+# In[ ]:
+
+
+## tempは決め打ちにしてみる２６６４＊１８０＊３６０早いかも？
 
 
 # In[8]:
@@ -258,6 +262,7 @@ fresh362_old = fresh362.copy() # 比較用コピー作成 pythonは＝だけだ�
 
 
 ## LANDINDEXすべての場所をestocweightを0にする（３／２３）
+## landindex 180*360
 for i in enumerate(landindex[0]): # i = loop index
     lat = (landindex[0][i[0]])
     lon = (landindex[1][i[0]])
@@ -299,11 +304,13 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             lon = (landindex[1][i[0]])+1
             
             # 1箇所だけlon=360がある
+            ## latも値を確認0、179があるとだめ
             calcflag = estocweight[lat-1,lon] + estocweight[lat+1,lon] + estocweight[lat,lon-1] + estocweight[lat,lon+1] 
-            if lon != 360:
-                calcdata = (fresh362_old[index,lat-1,lon]*estocweight[lat-1,lon] + fresh362_old[index,lat+1,lon]*estocweight[lat+1,lon]                            +fresh362_old[index,lat,lon-1]*estocweight[lat,lon-1] + fresh362_old[index,lat,lon+1]*estocweight[lat,lon+1])
-            else:
-                calcdata = (fresh362_old[index,lat-1,lon]*estocweight[lat-1,lon] + fresh362_old[index,lat+1,lon]*estocweight[lat+1,lon]                            +fresh362_old[index,lat,lon-1]*estocweight[lat,lon-1] + fresh362_old[index,lat,0]*estocweight[lat,0])
+            #if lon != 360:
+            calcdata = (fresh362_old[index,lat-1,lon]*estocweight[lat-1,lon] + fresh362_old[index,lat+1,lon]*estocweight[lat+1,lon]                            +fresh362_old[index,lat,lon-1]*estocweight[lat,lon-1] + fresh362_old[index,lat,lon+1]*estocweight[lat,lon+1])
+            #else:
+                #calcdata = (fresh362_old[index,lat-1,lon]*estocweight[lat-1,lon] + fresh362_old[index,lat+1,lon]*estocweight[lat+1,lon]\
+                 #           +fresh362_old[index,lat,lon-1]*estocweight[lat,lon-1] + fresh362_old[index,lat,0]*estocweight[lat,0])
                 
             if calcflag > 0:
                 calcweight = calcdata/(calcflag)
@@ -353,7 +360,7 @@ uflux = uflx * 10
 vflux = vflx * 10
 
 
-# In[17]:
+# In[18]:
 
 
 ## uflux,vfluxの193番目に0番を追加する、画面端の処理のため
@@ -384,7 +391,7 @@ while days < 2664:
     days += 1
 
 
-# In[18]:
+# In[19]:
 
 
 
@@ -399,7 +406,7 @@ while index < 2664:
     index += 1
 
 
-# In[19]:
+# In[20]:
 
 
 # vfluxを内挿してESTOCサイズに合わせる。
@@ -421,7 +428,7 @@ while days < 2664:
     days += 1
 
 
-# In[20]:
+# In[21]:
 
 
 # 画面端の処理をするために360番目の先に0番目の値を入れる
@@ -440,7 +447,7 @@ while days < 2664:
     
 
 
-# In[56]:
+# In[22]:
 
 
 ## 画面端処理のため0番目の前に360番目の値を入れる
@@ -458,7 +465,7 @@ while days < 2664:
     days += 1
 
 
-# In[57]:
+# In[23]:
 
 
 ## 明示的にコピーを作成
@@ -475,7 +482,7 @@ estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の�
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
 
 
-# In[58]:
+# In[24]:
 
 
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
@@ -484,7 +491,7 @@ estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値
 
 
 
-for index in range(2664): # 74年分で2664
+for index in range(32): # 74年分で2664
     for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了
         resmax = -10000000000
         vflx362_old = vflx362
@@ -523,7 +530,7 @@ vflx362[:,:,1:361].tofile('nc1ex1deg.vflx10dy.1948-2021.dat')
 print('end')
 
 
-# In[60]:
+# In[25]:
 
 
 # uflxをESTOCサイズに合わせるため内挿する
@@ -548,7 +555,7 @@ while days < 2664:
 print('end')
 
 
-# In[61]:
+# In[26]:
 
 
 # 画面端の処理をするために360番目の先に0番目の値を入れる
@@ -568,7 +575,7 @@ while days < 2664:
     
 
 
-# In[68]:
+# In[27]:
 
 
 ## 画面端処理0番の手前に359番目の値を入れる
@@ -587,7 +594,7 @@ while days < 2664:
     
 
 
-# In[69]:
+# In[28]:
 
 
 uflx362_old = uflx362.copy() # 計算用コピー作成
@@ -603,14 +610,14 @@ estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の�
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
 
 
-# In[71]:
+# In[29]:
 
 
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
 # landindex[0] = latitude
 # landindex[1] = longitude
 
-for index in range(2664): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
+for index in range(32): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
     for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了
         resmax = -10000000000
         uflx362_old = uflx362
@@ -626,8 +633,7 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             lon = (landindex[1][i[0]])
             
             calcflag = estocweight[lat-1,lon] + estocweight[lat+1,lon] + estocweight[lat,lon-1] + estocweight[lat,lon+1] 
-            if lon != 360:
-                calcdata = (uflx362_old[index,lat-1,lon]*estocweight[lat-1,lon]+uflx362_old[index,lat+1,lon]*estocweight[lat+1,lon]                            +uflx362_old[index,lat,lon-1]*estocweight[lat,lon-1]+uflx362_old[index,lat,lon+1]*estocweight[lat,lon+1])
+            calcdata = (uflx362_old[index,lat-1,lon]*estocweight[lat-1,lon]+uflx362_old[index,lat+1,lon]*estocweight[lat+1,lon]                        +uflx362_old[index,lat,lon-1]*estocweight[lat,lon-1]+uflx362_old[index,lat,lon+1]*estocweight[lat,lon+1])
                 
             if calcflag > 0:
                 calcweight = calcdata/calcflag
@@ -648,17 +654,17 @@ uflx361[:,:,1:361].tofile('nc1ex1deg.uflx10dy.1948-2021.dat')
 print('end')
 
 
-# In[81]:
+# In[31]:
 
 
 #ガベージコレクタ\n",
-del uflux362_old,vflux362,vflx362
+del uflx362_old,uflx362,uflx361,vflx362,vflx362_old,vflx361,interp_uflx,interp_vflx,vflux193,uflux193,vflux,uflux,vflx,uflx
 gc.collect()
 
 ### Net heat fluxの計算
 
 
-# In[21]:
+# In[32]:
 
 
 # dswrf
@@ -675,7 +681,7 @@ sh = np.fromfile('shtfl10dy.dat').reshape(2664,94,192)
 lh = np.fromfile('lhtfl10dy.dat').reshape(2664,94,192)
 
 
-# In[22]:
+# In[33]:
 
 
 # landmask
@@ -709,14 +715,14 @@ while index < 2664:
     index += 1
 
 
-# In[23]:
+# In[34]:
 
 
 ## 内挿の座標値を元に戻す（vflux,ufluxだけ座標値が変わる）
 xi,yi = np.mgrid[0.5:360:1,-89.5:90:1]
 
 
-# In[24]:
+# In[35]:
 
 
 # ESTOCのサイズに合わせるため内挿する
@@ -741,7 +747,7 @@ while days < 2664:
 print('end')
 
 
-# In[25]:
+# In[36]:
 
 
 # 画面端の処理をするために360番目の先に0番目を足す
@@ -760,7 +766,7 @@ while days < 2664:
     
 
 
-# In[26]:
+# In[38]:
 
 
 ## 画面端処理、0番目の前に359番目を足す
@@ -779,7 +785,7 @@ while days < 2664:
     
 
 
-# In[27]:
+# In[39]:
 
 
 gh362_old = gh362.copy() # 計算用コピー作成
@@ -794,7 +800,7 @@ estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の�
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
 
 
-# In[ ]:
+# In[42]:
 
 
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
@@ -802,7 +808,7 @@ estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値
 # landindex[1] = longitude
 
 
-for index in range(2664): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
+for index in range(32): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
     for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了
         resmax = -10000000000
         gh362_old = gh362
@@ -836,20 +842,20 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             #print('index=',index,'counter=',counter)
             break
         
-gh361[:,:,1:361].tofile('nc1ex1deg.heatf10dy.1948-2021.dat')
+gh362_old[:,:,1:361].tofile('nc1ex1deg.heatf10dy.1948-2021.dat')
 print('end')
 
 
-# In[63]:
+# In[43]:
 
 
 #ガベージコレクタ\n",
-del temp,interp_gh,gh361,gh361_old,gh,gh193
+del temp,interp_gh,gh362,gh362_old,gh,gh193
 gc.collect()
 ### Net solar fluxの計算
 
 
-# In[64]:
+# In[44]:
 
 
 ## net solar flux
@@ -881,7 +887,7 @@ while index < 2664:
     index += 1
 
 
-# In[65]:
+# In[45]:
 
 
 ## ESTOCサイズにするために内挿
@@ -905,7 +911,7 @@ while days < 2664:
 print('end')
 
 
-# In[66]:
+# In[46]:
 
 
 # 画面端の処理をするために360番目の先に0番目の値を足す
@@ -923,7 +929,7 @@ while days < 2664:
     days += 1
 
 
-# In[ ]:
+# In[47]:
 
 
 ## 画面端処理、0番目の前に359番目の値を入れる
@@ -941,7 +947,7 @@ while days < 2664:
     days += 1
 
 
-# In[67]:
+# In[48]:
 
 
 snr362_old = snr362.copy() # 計算用コピー作成
@@ -956,14 +962,14 @@ estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の�
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
 
 
-# In[69]:
+# In[49]:
 
 
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
 # landindex[0] = latitude
 # landindex[1] = longitude
 
-for index in range(2664): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
+for index in range(32): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
     for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了
         resmax = -10000000000
         snr362_old = snr362
@@ -978,16 +984,13 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             lon = (landindex[1][i[0]])
             
             calcflag = estocweight[lat-1,lon] + estocweight[lat+1,lon] + estocweight[lat,lon-1] + estocweight[lat,lon+1] 
-            if lon != 36060:
-                calcdata = snr362_old[index,lat-1,lon]*estocweight[lat-1,lon]+snr362_old[index,lat+1,lon]*estocweight[lat+1,lon]                            +snr362_old[index,lat,lon-1]*estocweight[lat,lon-1]+snr362_old[index,lat,lon+1]*estocweight[lat,lon+1]
-            else:
-                calcdata = snr362_old[index,lat-1,lon]*estocweight[lat-1,lon]+snr362_old[index,lat+1,lon]*estocweight[lat+1,lon]                            +snr362_old[index,lat,lon-1]*estocweight[lat,lon-1]+snr362_old[index,lat,0]*estocweight[lat,0]
-                
+            calcdata = snr362_old[index,lat-1,lon]*estocweight[lat-1,lon]+snr362_old[index,lat+1,lon]*estocweight[lat+1,lon]                       +snr362_old[index,lat,lon-1]*estocweight[lat,lon-1]+snr362_old[index,lat,lon+1]*estocweight[lat,lon+1]
+                           
                 
             if calcflag > 0:
                 calcweight = calcdata/calcflag
-                res = abs(snr361_old[index,lat,lon] - calcweight)
-                snr361[index,lat,lon] = calcweight
+                res = abs(snr362_old[index,lat,lon] - calcweight)
+                snr362[index,lat,lon] = calcweight
                 estocweight[lat,lon] = 1
                 resmax = max(resmax,res)
                     
@@ -997,7 +1000,7 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             #print('index=',index,'counter=',counter)
             break
 
-snr361[:,:,:360].tofile('nc1ex1deg.snr10dy.1948-2021.dat')
+snr362[:,:,:360].tofile('nc1ex1deg.snr10dy.1948-2021.dat')
 
 print('end')
 
