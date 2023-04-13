@@ -35,6 +35,8 @@ import cartopy.feature as cfeature
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from scipy.interpolate import griddata
 import gc
+import ipyparallel as ipp
+import os
 
 # 緯度経度は実際の数値を入れる
 # 元データNCファイルの緯度経度の範囲を得る
@@ -155,7 +157,7 @@ while days < 2664:
     days += 1
 
 
-# In[9]:
+# In[8]:
 
 
 # 画面端の処理をするために横に1列増やす、左右必要
@@ -165,7 +167,7 @@ add359 = interp_fresh[:,:,359].reshape(2664,180,1) # 360番目の値を抜き出
 fresh362 = np.append(add359,(np.append(interp_fresh,addzero,axis=2)),axis=2)
 
 
-# In[10]:
+# In[9]:
 
 
 # ESTOCランドマスク作成
@@ -185,7 +187,7 @@ estocmask = np.append(estocmask,bottom,axis=0)
 estoclandmask = (estocmask == 0)
 
 
-# In[11]:
+# In[10]:
 
 
 # NCEPランドマスク作成
@@ -196,7 +198,7 @@ estoclandmask = (estocmask == 0)
 rev_iland = np.where(iland == 0 ,1,0)
 
 
-# In[12]:
+# In[11]:
 
 
 # ESTOCランドマスクに合わせる内挿処理
@@ -204,7 +206,7 @@ rev_iland = np.where(iland == 0 ,1,0)
 ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,0],yi[0,:])
 
 
-# In[13]:
+# In[12]:
 
 
 ######################################################
@@ -249,7 +251,16 @@ estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値
 # この時点でestocweight 180＊362
 
 
-# In[22]:
+# In[13]:
+
+
+# ファイル作る前にあったらとりあえず消しておく
+##ファイルがあるときは一旦削除する
+if os.path.isfile('fwflux10dy-1948-2021.dat'):
+    os.remove('fwflux10dy-1948-2021.dat')
+
+
+# In[14]:
 
 
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
@@ -289,19 +300,12 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
                 resmax = max(resmax,res)         
               
         if 0.0000001 > resmax:
-            #print('counter=',counter,'index=',index)
+            print('counter=',counter,'index=',index)
             break
         
             
 fresh362[:,:,1:361].tofile('fwflux10dy-1948-2021.dat')
 print('end')
-
-
-# In[40]:
-
-
-#temp = np.fromfile('nc1ex1deg.vflx10dy.1948-2021.dat').reshape(2664,180,360)
-#plt.imshow(temp[100,:,:],vmin=-1*10**-6,vmax=1*10**-6)
 
 
 # In[25]:
@@ -428,6 +432,15 @@ estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の�
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
 
 
+# In[ ]:
+
+
+# ファイル作る前にあったらとりあえず消しておく
+##ファイルがあるときは一旦削除する
+if os.path.isfile('nc1ex1deg.vflx10dy.1948-2021.dat'):
+    os.remove('nc1ex1deg.vflx10dy.1948-2021.dat)
+
+
 # In[39]:
 
 
@@ -468,7 +481,7 @@ for index in range(2664): # 74年分で2664
             # 差分が範囲超えたら抜ける
             # 閾値は要調整
         if 0.001 > resmax:
-            print('counter=',counter,'index=',index)
+            #print('counter=',counter,'index=',index)
             break
 
 vflx362[:,:,1:361].tofile('nc1ex1deg.vflx10dy.1948-2021.dat')
@@ -538,6 +551,15 @@ right = estocweight[:,359]
 
 estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の値を足す
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
+
+
+# In[ ]:
+
+
+# ファイル作る前にあったらとりあえず消しておく
+##ファイルがあるときは一旦削除する
+if os.path.isfile('nc1ex1deg.uflx10dy.1948-2021.dat'):
+    os.remove('nc1ex1deg.uflx10dy.1948-2021.dat')
 
 
 # In[45]:
@@ -698,6 +720,15 @@ estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の�
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
 
 
+# In[ ]:
+
+
+# ファイル作る前にあったらとりあえず消しておく
+##ファイルがあるときは一旦削除する
+if os.path.isfile('nc1ex1deg.heatf10dy.1948-2021.dat'):
+    os.remove('nc1ex1deg.heatf10dy.1948-2021.dat')
+
+
 # In[53]:
 
 
@@ -830,6 +861,15 @@ right = estocweight[:,359]
 
 estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の値を足す
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
+
+
+# In[ ]:
+
+
+# ファイル作る前にあったらとりあえず消しておく
+##ファイルがあるときは一旦削除する
+if os.path.isfile('nc1ex1deg.snr10dy.1948-2021.dat'):
+    os.remove('nc1ex1deg.snr10dy.1948-2021.dat')
 
 
 # In[59]:
