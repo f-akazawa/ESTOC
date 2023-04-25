@@ -282,7 +282,7 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
         estocweight_old[:,361] = left #360の先に1の値を更新
         ## 同じことをFresh362でもやる
         fresh362_old[index,:,0] = fresh362[index,:,360]
-        fresh362_old[index,:,361] = fresh362[index,:,0]
+        fresh362_old[index,:,361] = fresh362[index,:,1]
         
         for i in enumerate(landindex[0]): # i = loop index
             lat = (landindex[0][i[0]])
@@ -472,7 +472,7 @@ for index in range(2664): # 74年分で2664
         estocweight[:,361] = left #360の先に1の値を更新
         # 同じことをvflx362でもやる
         vflx362_old[index,:,0] = vflx362[index,:,360]
-        vflx362_old[index,:,361] = vflx362[index,:,0]
+        vflx362_old[index,:,361] = vflx362[index,:,1]
         
         
         for i in enumerate(landindex[0]): # i = loop index
@@ -598,7 +598,7 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
         estocweight[:,361] = left #360の先に1の値を更新
         # 同じことをuflx362でもやる
         uflx362_old[index,:,0] = uflx362[index,:,360]
-        uflx362_old[index,:,361] = uflx362[index,:,0]
+        uflx362_old[index,:,361] = uflx362[index,:,1]
                 
         for i in enumerate(landindex[0]): # i = loop index
             lat = (landindex[0][i[0]])
@@ -624,7 +624,7 @@ uflx362[:,:,1:361].tofile('nc1ex1deg.uflx10dy.1948-2021.dat')
 print('end')
 
 
-# In[33]:
+# In[45]:
 
 
 #ガベージコレクタ\n",
@@ -634,7 +634,7 @@ gc.collect()
 ### Net heat fluxの計算
 
 
-# In[14]:
+# In[46]:
 
 
 # dswrf
@@ -651,7 +651,7 @@ sh = np.fromfile('shtfl10dy.dat').reshape(2664,94,192)
 lh = np.fromfile('lhtfl10dy.dat').reshape(2664,94,192)
 
 
-# In[35]:
+# In[47]:
 
 
 # landmask
@@ -682,14 +682,14 @@ while index < 2664:
     index += 1
 
 
-# In[36]:
+# In[48]:
 
 
 ## 内挿の座標値を元に戻す（vflux,ufluxだけ座標値が変わる）
 xi,yi = np.mgrid[0.5:360:1,-89.5:90:1]
 
 
-# In[37]:
+# In[49]:
 
 
 # ESTOCのサイズに合わせるため内挿する
@@ -714,7 +714,7 @@ while days < 2664:
 print('end')
 
 
-# In[38]:
+# In[50]:
 
 
 # 画面端の処理をするために360番目の先に0番目を足す
@@ -725,7 +725,7 @@ gh362 = np.append(add359,(np.append(interp_gh,addzero,axis=2)),axis=2)
    
 
 
-# In[39]:
+# In[51]:
 
 
 gh362_old = gh362.copy() # 計算用コピー作成
@@ -740,7 +740,7 @@ estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の�
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
 
 
-# In[40]:
+# In[52]:
 
 
 # ファイル作る前にあったらとりあえず消しておく
@@ -770,7 +770,7 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
         estocweight[:,361] = left #360の先に1の値を更新
         # 同じことをgh362でもやる
         gh362_old[index,:,0] = gh362[index,:,360]
-        gh362_old[index,:,361] = gh362[index,:,0]
+        gh362_old[index,:,361] = gh362[index,:,1]
                 
         
         for i in enumerate(landindex[0]): # i = loop index
@@ -791,7 +791,7 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
             
             # 差分が範囲超えたら抜ける
         if 0.1 > resmax:
-            #print('index=',index,'counter=',counter)
+            print('index=',index,'counter=',counter)
             break
         
 gh362[:,:,1:361].tofile('nc1ex1deg.heatf10dy.1948-2021.dat')
@@ -916,7 +916,7 @@ for index in range(2664): # ループが遅いのでテストで1年分だけ出
         estocweight[:,361] = left #360の先に1の値を更新
         # 同じことをsnr362でもやる
         snr362_old[index,:,0] = snr362[index,:,360]
-        snr362_old[index,:,361] = snr362[index,:,0]
+        snr362_old[index,:,361] = snr362[index,:,1]
         
         for i in enumerate(landindex[0]): # i = loop index
             lat = (landindex[0][i[0]])
