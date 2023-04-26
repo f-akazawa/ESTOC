@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[24]:
+# In[1]:
 
 
 # この時点で必要なデータ\n",
@@ -19,7 +19,7 @@
 # 元ソースは94 x 192 > 178 x 360に補完している"
 
 
-# In[25]:
+# In[2]:
 
 
 import xarray as xr
@@ -60,7 +60,7 @@ orig_lon = np.append(np.array(ncep_param['lon']),360) # 360を追加しておく
 xi,yi = np.mgrid[0.5:360:1,-89.5:90:1]
 
 
-# In[26]:
+# In[3]:
 
 
 #landft06 = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/land.ft06.big' # pythonの場合reshape(94,192)で読み込む\n",
@@ -94,7 +94,7 @@ prate = np.fromfile('prate10dy.dat').reshape(2664,94,192)
 lhtfl = np.fromfile('lhtfl10dy.dat').reshape(2664,94,192)
 
 
-# In[27]:
+# In[4]:
 
 
 #ESTOCでは海だけど、NCEPでは陸地の部分
@@ -109,7 +109,7 @@ addzero = fresh[:,:,0].reshape(2664,94,1) # 0番目の列を取り出して2次�
 fresh193 = np.append(fresh,addzero,axis=2) # axis=0奥行き方向、1行方向、2列方向
 
 
-# In[28]:
+# In[5]:
 
 
 ## NCEPデータは読んだら必ずフリップ(4/4)
@@ -120,7 +120,7 @@ while index < 2664:
     index += 1
 
 
-# In[29]:
+# In[6]:
 
 
 # ilandで陸地だったらfreshの同位置を０にする\n",
@@ -167,7 +167,7 @@ add359 = interp_fresh[:,:,359].reshape(2664,180,1) # 360番目の値を抜き出
 fresh362 = np.append(add359,(np.append(interp_fresh,addzero,axis=2)),axis=2)
 
 
-# In[32]:
+# In[7]:
 
 
 # ESTOCランドマスク作成
@@ -187,7 +187,7 @@ estocmask = np.append(estocmask,bottom,axis=0)
 estoclandmask = (estocmask == 0)
 
 
-# In[33]:
+# In[8]:
 
 
 # NCEPランドマスク作成
@@ -198,7 +198,7 @@ estoclandmask = (estocmask == 0)
 rev_iland = np.where(iland == 0 ,1,0)
 
 
-# In[34]:
+# In[9]:
 
 
 # ESTOCランドマスクに合わせる内挿処理
@@ -206,7 +206,7 @@ rev_iland = np.where(iland == 0 ,1,0)
 ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,0],yi[0,:])
 
 
-# In[35]:
+# In[10]:
 
 
 ######################################################
@@ -327,7 +327,7 @@ gc.collect()
 ### uflux10dy.dat vflux10dy.dataを使う
 
 
-# In[36]:
+# In[11]:
 
 
 ## ESTOCマスク専用を用意するxi,yiが変わる
@@ -348,7 +348,7 @@ uflux = uflx * 10
 vflux = vflx * 10
 
 
-# In[37]:
+# In[12]:
 
 
 ## uflux,vfluxの193番目に0番を追加する、画面端の処理のため
@@ -360,7 +360,7 @@ addzero = vflux[:,:,0].reshape(2664,94,1)
 vflux193 = np.append(vflux,addzero,axis=2)
 
 
-# In[38]:
+# In[13]:
 
 
 ## NCEPデータは読んだら必ずフリップ(4/4)
@@ -376,7 +376,7 @@ while index < 2664:
     index += 1
 
 
-# In[39]:
+# In[14]:
 
 
 
@@ -391,7 +391,7 @@ while index < 2664:
     index += 1
 
 
-# In[21]:
+# In[15]:
 
 
 # vfluxを内挿してESTOCサイズに合わせる。
@@ -413,34 +413,7 @@ while days < 2664:
     days += 1
 
 
-# In[22]:
-
-
-# 画面端の処理をするために360番目の先に0番目の値を入れる
-addzero = interp_vflx[:,:,0].reshape(2664,180,1)
-add359 = interp_vflx[:,:,359].reshape(2664,180,1)
-
-vflx362 =  np.append(add359,(np.append(interp_vflx,addzero,axis=2)),axis=2)
-
-
-# In[23]:
-
-
-## 明示的にコピーを作成
-vflx362_old = vflx362.copy() # 計算用コピー作成
-
-# estocweightを初期化
-estocweight = np.where(estoclandmask == True,0,1)
-##estocweightを拡大する。
-##0の左に３５９の値　３６０の右に元の０の値それぞれ値を入れておく（３・２３）
-left = estocweight[:,0]
-right = estocweight[:,359]
-
-estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の値を足す
-estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
-
-
-# In[24]:
+# In[16]:
 
 
 # ファイル作る前にあったらとりあえず消しておく
@@ -449,63 +422,13 @@ if os.path.isfile('nc1ex1deg.vflx10dy.1948-2021.dat'):
     os.remove('nc1ex1deg.vflx10dy.1948-2021.dat')
 
 
-# In[25]:
+# In[17]:
 
 
-# landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
-# landindex[0] = latitude
-# landindex[1] = longitude
-
-estocweight_old = estocweight.copy()
-
-
-for index in range(2664): # 74年分で2664
-    for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了
-        resmax = -10000000000
-        vflx362_old[index,:,:] = vflx362[index,:,:] ## コレも必要
-        estocweight_old[:,:] = estocweight[:,:]
-        
-        ## estocweight0,360 に更新（右と左両方追加、3/23)
-        left = estocweight[:,1]
-        right = estocweight[:,360]
-        estocweight[:,0] = right # 0の前に360の値を更新
-        estocweight[:,361] = left #360の先に1の値を更新
-        # 同じことをvflx362でもやる
-        vflx362_old[index,:,0] = vflx362[index,:,360]
-        vflx362_old[index,:,361] = vflx362[index,:,1]
-        
-        
-        for i in enumerate(landindex[0]): # i = loop index
-            lat = (landindex[0][i[0]])
-            lon = (landindex[1][i[0]])+1
-            
-            calcflag = estocweight_old[lat-1,lon] + estocweight_old[lat+1,lon] + estocweight_old[lat,lon-1] + estocweight_old[lat,lon+1]
-
-            calddata = (vflx362_old[index,lat-1,lon]*estocweight_old[lat-1,lon]+vflx362_old[index,lat+1,lon]*estocweight_old[lat+1,lon]                       +vflx362_old[index,lat,lon-1]*estocweight_old[lat,lon-1]+vflx362_old[index,lat,lon+1]*estocweight_old[lat,lon+1])
-                
-                
-            if calcflag > 0:
-                calcweight = calcdata/calcflag
-                res = abs(vflx362_old[index,lat,lon] - calcweight)
-                vflx362[index,lat,lon] = calcweight
-                estocweight[lat,lon] = 1
-                resmax = max(resmax,res)
-        
-
-            # 差分が範囲超えたら抜ける
-            # 閾値は要調整
-        if 0.001 > resmax:
-            #print('counter=',counter,'index=',index)
-            break
-
-vflx362[:,:,1:361].tofile('nc1ex1deg.vflx10dy.1948-2021.dat')
+## 風応力のランドシーマスクでの穴埋めは辞めるので書き出し(4/26)
+## 以下の1000回ループ計算のセルまで削除
+interp_vflx.tofile('nc1ex1deg.vflx10dy.1948-2021.dat')
 print('end')
-
-
-# In[ ]:
-
-
-
 
 
 # In[26]:
@@ -516,7 +439,7 @@ del add359,addzero,slicedays,vflux,vflux193,vflx362,vflx362_old
 gc.collect()
 
 
-# In[40]:
+# In[18]:
 
 
 # uflxをESTOCサイズに合わせるため内挿する
@@ -541,33 +464,7 @@ while days < 2664:
 print('end')
 
 
-# In[41]:
-
-
-# 画面端の処理をするために360番目の先に0番目の値を入れる,0番の前に359番の値を入れる
-addzero = interp_uflx[:,:,0].reshape(2664,180,1)
-add359 = interp_uflx[:,:,359].reshape(2664,180,1)
-
-uflx362 = np.append(add359,(np.append(interp_uflx,addzero,axis=2)),axis=2)
-
-
-# In[42]:
-
-
-uflx362_old = uflx362.copy() # 計算用コピー作成
-
-# estocweightを初期化
-estocweight = np.where(estoclandmask == True,0,1)
-##estocweightを拡大する。
-##0の左に３５９の値　３６０の右に元の０の値それぞれ値を入れておく（３・２３）
-left = estocweight[:,0]
-right = estocweight[:,359]
-
-estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の値を足す
-estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
-
-
-# In[43]:
+# In[19]:
 
 
 # ファイル作る前にあったらとりあえず消しておく
@@ -576,51 +473,12 @@ if os.path.isfile('nc1ex1deg.uflx10dy.1948-2021.dat'):
     os.remove('nc1ex1deg.uflx10dy.1948-2021.dat')
 
 
-# In[44]:
+# In[20]:
 
 
-# landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
-# landindex[0] = latitude
-# landindex[1] = longitude
-
-estocweight_old = estocweight.copy()
-
-for index in range(2664): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
-    for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了
-        resmax = -10000000000
-        uflx362_old[index,:,:] = uflx362[index,:,:] ## コレも必要
-        estocweight_old[:,:] = estocweight[:,:]
-        
-        ## estocweight0,360 に更新（右と左両方追加、3/23)
-        left = estocweight[:,1]
-        right = estocweight[:,360]
-        estocweight[:,0] = right # 0の前に360の値を更新
-        estocweight[:,361] = left #360の先に1の値を更新
-        # 同じことをuflx362でもやる
-        uflx362_old[index,:,0] = uflx362[index,:,360]
-        uflx362_old[index,:,361] = uflx362[index,:,1]
-                
-        for i in enumerate(landindex[0]): # i = loop index
-            lat = (landindex[0][i[0]])
-            lon = (landindex[1][i[0]])
-            
-            calcflag = estocweight_old[lat-1,lon] + estocweight_old[lat+1,lon] + estocweight_old[lat,lon-1] + estocweight_old[lat,lon+1] 
-            calcdata = (uflx362_old[index,lat-1,lon]*estocweight_old[lat-1,lon]+uflx362_old[index,lat+1,lon]*estocweight_old[lat+1,lon]                        +uflx362_old[index,lat,lon-1]*estocweight_old[lat,lon-1]+uflx362_old[index,lat,lon+1]*estocweight_old[lat,lon+1])
-                
-            if calcflag > 0:
-                calcweight = calcdata/calcflag
-                res = abs(uflx362_old[index,lat,lon] - calcweight)
-                uflx362[index,lat,lon] = calcweight
-                estocweight[lat,lon] = 1
-                resmax = max(resmax,res)
-        
-        #print(resmax)
-        # 差分が範囲超えたら抜ける
-        if 0.001 > resmax:
-            print('break counter=',counter,'index=',index)
-            break
-
-uflx362[:,:,1:361].tofile('nc1ex1deg.uflx10dy.1948-2021.dat')
+## 風応力の場合はランドシーマスクでの穴埋めはやらない（4/26)
+## 以下1000回ループ計算のセルまで削除
+interp_uflx.tofile('nc1ex1deg.uflx10dy.1948-2021.dat')
 print('end')
 
 
