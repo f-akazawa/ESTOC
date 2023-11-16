@@ -9,6 +9,9 @@
 * xarray
 ```
 NETCDF files
+
+ftp://ftp.cdc.noaa.gov/Datasets/ncep.reanalysis.dailyavgs/surface_gauss/
+
 dswrf.sfc.gauss.yyyy.nc
 dlwrf.sfc.gauss.yyyy.nc
 lhtfl.sfc.gauss.yyyy.nc
