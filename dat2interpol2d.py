@@ -22,6 +22,25 @@
 # In[2]:
 
 
+## プロットして見やすいようにファイルを読み込んだらflipudで上下反転させている
+##　あとから追加読み込みしたファイルでは忘れがちなので注意すること
+
+
+# In[ ]:
+
+
+##　vflux,ufluxは処理が違うので別ファイルでやることにした（２０２３・１２・１９）
+
+
+# In[ ]:
+
+
+
+
+
+# In[3]:
+
+
 import xarray as xr
 import numpy as np
 from scipy import interpolate
@@ -36,6 +55,7 @@ from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from scipy.interpolate import griddata
 import gc
 import os
+import multiprocessing as mp
 
 # 緯度経度は実際の数値を入れる
 # 元データNCファイルの緯度経度の範囲を得る
@@ -63,7 +83,19 @@ xi,yi = np.mgrid[0.5:360:1,-89.5:90:1]
 yearnum = 2703
 
 
-# In[3]:
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[4]:
 
 
 #landft06 = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/land.ft06.big' # pythonの場合reshape(94,192)で読み込む\n",
@@ -90,7 +122,7 @@ prevclimate = '01_ESTOC_ForcingData/NCEP_NCAR_Forcing/2017/4.fwat/inc/prev_clima
 
 
 
-# In[4]:
+# In[6]:
 
 
 # ESTOCランドマスク作成
@@ -122,7 +154,14 @@ rev_iland = np.where(iland == 0 ,1,0)
 ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,0],yi[0,:])
 
 
-# In[23]:
+
+# In[ ]:
+
+
+
+
+
+# In[5]:
 
 
 ######################################################
@@ -166,7 +205,7 @@ estocweight_old = estocweight.copy() # 計算用に必要なので作ってお�
 estocweight_orig = estocweight.copy()
 
 
-# In[ ]:
+# In[6]:
 
 
 #prate10dy.dat",
@@ -175,7 +214,7 @@ prate = np.fromfile('prate10dy.dat').reshape(yearnum,94,192)
 lhtfl = np.fromfile('lhtfl10dy.dat').reshape(yearnum,94,192)
 
 
-# In[4]:
+# In[7]:
 
 
 #ESTOCでは海だけど、NCEPでは陸地の部分
@@ -190,7 +229,7 @@ addzero = fresh[:,:,0].reshape(yearnum,94,1) # 0番目の列を取り出して2�
 fresh193 = np.append(fresh,addzero,axis=2) # axis=0奥行き方向、1行方向、2列方向
 
 
-# In[5]:
+# In[8]:
 
 
 ## NCEPデータは読んだら必ずフリップ(4/4)
@@ -201,7 +240,7 @@ while index < yearnum:
     index += 1
 
 
-# In[6]:
+# In[9]:
 
 
 # ilandで陸地だったらfreshの同位置を０にする\n",
@@ -216,45 +255,68 @@ while index < yearnum:
 ### この時点でlandmaskは(94*193)
 
 
-# In[7]:
+# In[ ]:
 
+
+
+
+
+# In[10]:
+
+
+#各日のデータ処理を個別の関数process_dayに分け、multiprocessing.Pool.mapを使用してそれらを並列に実行する。
+#これにより、マルチコアプロセッサの全てのコアを利用して高速化することができる。
 
 # freshのサイズをESTOCに合わせる内挿処理
 readdata = xr.DataArray(fresh193,dims=['time','lat','lon']) # ファイルを読み込んでXArrayに入れる\n",
 # dim_0 10日平均 dim_1 lat緯度 dim_2 lon経度\n",
 
-days = 0
-temp = []
+## time(year)毎に内挿するので
 
-while days < yearnum: # 2925(1948/01-2023/01)
-    slicedays = readdata[days,:,:]
-    
+def process_day(day):
+    slicedays = readdata[day,:,:]
     zi = interpolate.interp2d(orig_lon,orig_lat,slicedays,kind='linear')(xi[:,0],yi[0,:])
-    
-    interp_fresh = np.append(temp,zi).reshape([days+1,180,360])
+    return zi
 
-    temp = interp_fresh
+if __name__ == '__main__':
+    with mp.Pool(mp.cpu_count()) as pool:
+        results = pool.map(process_day, range(yearnum)) # 2703(1948/01-2023/01)
 
-    days += 1
+    interp_fresh = np.array(results).reshape([yearnum,180,360])
 
 print('end')
 
 
-# In[8]:
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[11]:
 
 
 ## debug用にinterp_freshはファイル保存する
 ## 内挿処理に時間がかかるので
+if os.path.isfile('./interp_fresh.npy'):
+    os.remove('./interp_fresh.npy')
+    
 np.save('./interp_fresh.npy',interp_fresh)
 
 
-# In[7]:
+# In[ ]:
 
 
 
 
 
-# In[8]:
+# In[11]:
 
 
 # 画面端の処理をするために横に1列増やす、左右必要
@@ -265,7 +327,7 @@ add359 = interp_fresh[:,:,359].reshape(yearnum,180,1) # 360番目の値を抜き
 fresh362 = np.append(add359,(np.append(interp_fresh,addzero,axis=2)),axis=2)
 
 
-# In[15]:
+# In[ ]:
 
 
 
@@ -279,8 +341,11 @@ fresh362 = np.append(add359,(np.append(interp_fresh,addzero,axis=2)),axis=2)
 if os.path.isfile('fwflux10dy-1948-2023.dat'):
     os.remove('fwflux10dy-1948-2023.dat')
 
+if os.path.isfile('fwflux10dy-10.dat'):
+    os.remove('fwflux10dy-10.dat')
 
-# In[16]:
+
+# In[17]:
 
 
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
@@ -289,7 +354,7 @@ if os.path.isfile('fwflux10dy-1948-2023.dat'):
 fresh362_old = fresh362.copy() # 比較用コピー作成 pythonは＝だけだとメモリ共通なので元も代わってしまうため.copy()をつけて別のメモリにコピー
 
 
-for index in range(10): # ループが遅いのでテストで1年分だけ出してみる、本当は75年分で2703
+for index in range(2703): # ループが遅いのでテストで1年分だけ出してみる、本当は75年分で2703
 
     estocweight = estocweight_orig.copy() # 10/2
 
@@ -334,22 +399,25 @@ for index in range(10): # ループが遅いのでテストで1年分だけ出�
             break
 
 ## ファイル書き出しを別セルにする（遅いので）
-fresh362[:,:,1:361].tofile('fwflux10dy-10.dat')
 print('end')
 
 
-# In[22]:
+# In[ ]:
 
 
-## write big endian
+## 出来たファイルを保存して別ファイルでESTOCの陸に-1.0e33 入れて、ビッグエンディアン変換、バイナリで書き出しをする
+
+
+# In[14]:
+
+
+## write file
 fwflux = fresh362[:,:,1:361]
-big = fwflux.byteswap()
 
-if os.path.isfile('./fwflux10dy_big.bin'):
-    os.remove('./fwflux10dy_big.bin')
-    
-with open('fwflux10dy_big.bin','wb') as f:
-    big.tofile(f)
+if os.path.isfile('fresh_anaume.npy'):
+    os.remove('fresh_anaume.npy')
+
+np.save('fresh_anaume',fwflux)
 
 
 # In[ ]:
@@ -369,212 +437,13 @@ gc.collect()
 ### uflux10dy.dat vflux10dy.dataを使う
 
 
-# In[27]:
-
-
-## ESTOCマスク専用を用意するxi,yiが変わる
-## uflx,vflxはESTOCマスクを変更する
-## mgridを公差ではなく項数にするためにjをつける
-xi,yi = np.mgrid[1:360:360j,-89:90:180j]
-
-
-# uflx
-uflx = np.fromfile('uflx10dy.dat').reshape(yearnum,94,192)
-# vflx
-vflx = np.fromfile('vflx10dy.dat').reshape(yearnum,94,192)
-
-# landmask
-# fresh water では計算式があったが、momentum fluxでは無い
-# *10は単位換算
-uflux = uflx * 10
-vflux = vflx * 10
-
-
-# In[28]:
-
-
-## uflux,vfluxの193番目に0番を追加する、画面端の処理のため
-
-addzero = uflux[:,:,0].reshape(yearnum,94,1)
-uflux193 = np.append(uflux,addzero,axis=2)
-
-addzero = vflux[:,:,0].reshape(yearnum,94,1)
-vflux193 = np.append(vflux,addzero,axis=2)
-
-
-# In[29]:
-
-
-## NCEPデータは読んだら必ずフリップ(4/4)
-## 必要とされるデータは南が0で上になっている
-index = 0
-while index < yearnum:
-    uflux193[index,:,:] = np.flipud(uflux193[index,:,:])
-    index += 1
-
-index = 0
-while index < yearnum:
-    vflux193[index,:,:] = np.flipud(vflux193[index,:,:])
-    index += 1
-
-
-# In[30]:
-
-
-# vfluxを内挿してESTOCサイズに合わせる。
-# 内挿する
-readdata = xr.DataArray(vflux193,dims=['time','lat','lon']) # ファイルを読み込んでXArrayに入れる\n",
-# dim_0 10日平均 dim_1 lat緯度 dim_2 lon経度\n",
-
-days = 0
-temp = []
-
-while days < yearnum:
-    slicedays = readdata[days,:,:]
-    zi = interpolate.interp2d(orig_lon,orig_lat,slicedays,kind='linear')(xi[:,0],yi[0,:])
-
-    interp_vflx = np.append(temp,zi).reshape([days+1,180,360])
-
-    temp = interp_vflx
-
-    days += 1
-
-
-# In[31]:
-
-
-if os.path.isfile('interp_vflx.npy'):
-    os.remove('interp_vflx.npy')
-
-np.save('interp_vflx',interp_vflx)
-
-
-# In[32]:
-
-
-# ファイル作る前にあったらとりあえず消しておく
-##ファイルがあるときは一旦削除する
-if os.path.isfile('nc1ex1deg.vflx10dy.1948-2023.dat'):
-    os.remove('nc1ex1deg.vflx10dy.1948-2023.dat')
-
-
-# In[33]:
-
-
-## 風応力のランドシーマスクでの穴埋めは不必要と判断されたので書き出し(4/26)
-## 以下の1000回ループ計算を削除して書き出し
-interp_vflx.tofile('nc1ex1deg.vflx10dy.1948-2023.dat')
-print('end')
-
-
-# In[40]:
-
-
-## write big endian
-big = interp_vflx.byteswap()
-
-if os.path.isfile('./vflux10dy_big.bin'):
-    os.remove('./vflux10dy_big.bin')
-
-with open('./vflux10dy_big.bin','wb') as f:
-    big.tofile(f)
-
-
 # In[ ]:
 
 
+##　uflux, vfluxは別ファイルで作成する
 
 
-
-# In[35]:
-
-
-## gabege collector
-del add359,addzero,slicedays,vflux,vflux193
-gc.collect()
-
-
-# In[36]:
-
-
-# uflxをESTOCサイズに合わせるため内挿する
-readdata = xr.DataArray(uflux193,dims=['time','lat','lon']) # ファイルを読み込んでXArrayに入れる\n",
-# dim_0 10日平均 dim_1 lat緯度 dim_2 lon経度\n",
-
-days = 0
-temp = []
-
-while days < yearnum:
-    slicedays = readdata[days,:,:]
-    zi = interpolate.interp2d(orig_lon,orig_lat,slicedays,kind='linear')(xi[:,0],yi[0,:])
-
-    interp_uflx = np.append(temp,zi).reshape([days+1,180,360])
-
-    temp = interp_uflx
-
-    days += 1
-
-
-
-print('end')
-
-
-# In[37]:
-
-
-if os.path.isfile('ingerp_uflx.npy'):
-    os.remove('interp_uflx.npy')
-    
-np.save('interp_uflx',interp_uflx)
-
-
-# In[38]:
-
-
-# ファイル作る前にあったらとりあえず消しておく
-##ファイルがあるときは一旦削除する
-if os.path.isfile('nc1ex1deg.uflx10dy.1948-2023.dat'):
-    os.remove('nc1ex1deg.uflx10dy.1948-2023.dat')
-
-
-# In[39]:
-
-
-## 風応力の場合はランドシーマスクでの穴埋めはやらない（4/26)
-## 1000回ループ計算がなくなるので書き出して終了
-interp_uflx.tofile('nc1ex1deg.uflx10dy.1948-2023.dat')
-print('end')
-
-
-# In[42]:
-
-
-big = interp_uflx.byteswap()
-
-if os.path.isfile('./uflux10dy_big.bin'):
-    os.remove('./uflux10dy_big.bin')
-    
-with open('./uflux10dy_big.bin','wb') as f:
-    big.tofile(f)
-
-
-# In[ ]:
-
-
-
-
-
-# In[43]:
-
-
-#ガベージコレクタ\n",
-del interp_uflx,uflux193,uflux,uflx,slicedays
-gc.collect()
-
-### Net heat fluxの計算
-
-
-# In[9]:
+# In[6]:
 
 
 yearnum = 2703
@@ -616,7 +485,7 @@ lh = np.fromfile('lhtfl10dy.dat').reshape(yearnum,94,192)
 
 
 
-# In[5]:
+# In[7]:
 
 
 # landmask
@@ -647,39 +516,35 @@ while index < yearnum:
     index += 1
 
 
-# In[46]:
+# In[8]:
 
 
 ## 内挿の座標値を元に戻す（vflux,ufluxだけ座標値が変わる）
 xi,yi = np.mgrid[0.5:360:1,-89.5:90:1]
 
 
-# In[47]:
+# In[9]:
 
 
 # ESTOCのサイズに合わせるため内挿する
 readdata = xr.DataArray(gh193,dims=['time','lat','lon']) # ファイルを読み込んでXArrayに入れる\n",
 # dim_0 10日平均 dim_1 lat緯度 dim_2 lon経度\n",
 
-days = 0
-temp = []
-
-while days < yearnum:
-    slicedays = readdata[days,:,:]
+def process_day(day):
+    slicedays = readdata[day,:,:]
     zi = interpolate.interp2d(orig_lon,orig_lat,slicedays,kind='linear')(xi[:,0],yi[0,:])
+    return zi
 
-    interp_gh = np.append(temp,zi).reshape([days+1,180,360])
+if __name__ == '__main__':
+    with mp.Pool(mp.cpu_count()) as pool:
+        results = pool.map(process_day, range(yearnum)) # 2703(1948/01-2023/01)
 
-    temp = interp_gh
-
-    days += 1
-
-
+    interp_gh = np.array(results).reshape([yearnum,180,360])
 
 print('end')
 
 
-# In[48]:
+# In[10]:
 
 
 if os.path.isfile('interp_gh.npy'):
@@ -688,7 +553,14 @@ if os.path.isfile('interp_gh.npy'):
 np.save('interp_gh',interp_gh)
 
 
-# In[49]:
+# In[ ]:
+
+
+# debug load
+interp_gh = np.fromfile('interp_gh.npy').reshape(2703,180,360)
+
+
+# In[21]:
 
 
 # 画面端の処理をするために360番目の先に0番目を足す
@@ -699,7 +571,7 @@ gh362 = np.append(add359,(np.append(interp_gh,addzero,axis=2)),axis=2)
    
 
 
-# In[50]:
+# In[22]:
 
 
 gh362_old = gh362.copy() # 計算用コピー作成
@@ -714,23 +586,27 @@ estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の�
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
 
 
-# In[51]:
+# In[23]:
 
 
 # ファイル作る前にあったらとりあえず消しておく
 ##ファイルがあるときは一旦削除する
 if os.path.isfile('nc1ex1deg.heatf10dy.1948-2023.dat'):
     os.remove('nc1ex1deg.heatf10dy.1948-2023.dat')
+    
+if os.path.isfile('heatf10dy.dat'):
+    os.remove('heat10dy.bin')
+    
 
 
-# In[52]:
+# In[24]:
 
 
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
 # landindex[0] = latitude
 # landindex[1] = longitude
 
-for index in range(yearnum): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
+for index in range(yearnum): # ループが遅いのでテストで1年分だけ出してみる、本当は75年分で2703
     estocweight = estocweight_orig.copy() # 10/2
     
     
@@ -766,25 +642,22 @@ for index in range(yearnum): # ループが遅いのでテストで1年分だけ
                 resmax = max(resmax,res)
             
             # 差分が範囲超えたら抜ける
-        if 0.1 > resmax:
+        if 0.0001 > resmax:
             break
         
-gh362[:,:,1:361].tofile('nc1ex1deg.heatf10dy.1948-2023.dat')
+
 print('end')
 
 
-# In[53]:
+# In[33]:
 
 
 temp = gh362[:,:,1:361]
 
-big = temp.byteswap()
+if os.path.isfile('./heat_anaume.npy'):
+    os.remove('./heat_anaume.npy')
 
-if os.path.isfile('./heat10dy_big.bin'):
-    os.remove('./heat10dy_big.bin')
-    
-with open('./heat10dy_big.bin','wb') as f:
-    big.tofile(f)
+np.save('heat_anaume',temp)
     
 
 
@@ -797,7 +670,7 @@ gc.collect()
 ### Net solar fluxの計算
 
 
-# In[14]:
+# In[43]:
 
 
 ## net solar flux
@@ -826,31 +699,28 @@ while index < yearnum:
     index += 1
 
 
-# In[15]:
+# In[44]:
 
 
 ## ESTOCサイズにするために内挿
 readdata = xr.DataArray(snr193,dims=['time','lat','lon']) # ファイルを読み込んでXArrayに入れる\n",
 # dim_0 10日平均 dim_1 lat緯度 dim_2 lon経度\n",
 
-days = 0
-temp = []
-
-while days < yearnum:
-    slicedays = readdata[days,:,:]
+def process_day(day):
+    slicedays = readdata[day,:,:]
     zi = interpolate.interp2d(orig_lon,orig_lat,slicedays,kind='linear')(xi[:,0],yi[0,:])
+    return zi
 
-    interp_snr = np.append(temp,zi).reshape([days+1,180,360])
+if __name__ == '__main__':
+    with mp.Pool(mp.cpu_count()) as pool:
+        results = pool.map(process_day, range(yearnum)) # 2703(1948/01-2023/01)
 
-    temp = interp_snr
-
-    days += 1
-
+    interp_snr = np.array(results).reshape([yearnum,180,360])
 
 print('end')
 
 
-# In[16]:
+# In[45]:
 
 
 if os.path.isfile('interp_snr.npy'):
@@ -859,7 +729,7 @@ if os.path.isfile('interp_snr.npy'):
 np.save('interp_snr',interp_snr)
 
 
-# In[17]:
+# In[46]:
 
 
 # 画面端の処理をするために360番目の先に0番目の値を足す
@@ -870,7 +740,7 @@ add359 = interp_snr[:,:,359].reshape(yearnum,180,1)
 snr362 = np.append(add359,(np.append(interp_snr,addzero,axis=2)),axis=2)
 
 
-# In[24]:
+# In[47]:
 
 
 snr362_old = snr362.copy() # 計算用コピー作成
@@ -885,16 +755,16 @@ estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の�
 estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
 
 
-# In[25]:
+# In[48]:
 
 
 # ファイル作る前にあったらとりあえず消しておく
 ##ファイルがあるときは一旦削除する
-if os.path.isfile('nc1ex1deg.snr10dy.1948-2023.dat'):
-    os.remove('nc1ex1deg.snr10dy.1948-2023.dat')
+if os.path.isfile('snr10dy_1948-2023.dat'):
+    os.remove('snr10dy_1948-2023.dat')
 
 
-# In[26]:
+# In[49]:
 
 
 # landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
@@ -906,7 +776,6 @@ if os.path.isfile('nc1ex1deg.snr10dy.1948-2023.dat'):
 for index in range(yearnum): # ループが遅いのでテストで1年分だけ出してみる、本当は74年分で2664
     estocweight = estocweight_orig.copy() # 10/2
     
-
     
     for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了
         resmax = -10000000000
@@ -939,253 +808,33 @@ for index in range(yearnum): # ループが遅いのでテストで1年分だけ
                     
 
         # 差分が範囲超えたら抜ける
-        if 0.5 > resmax:
+        if 0.0001 > resmax:
             break
 
-snr362[:,:,1:361].tofile('nc1ex1deg.snr10dy.1948-2023.dat')
+snr362[:,:,1:361].tofile('snr10dy_1948-2023.dat')
 
 print('end')
 
 
-# In[27]:
+# In[55]:
 
 
 temp = snr362[:,:,1:361]
-big = temp.byteswap()
 
-if os.path.isfile('./snr10dy_big.bin'):
-    os.remove('./snr10dy_big.bin')
+if os.path.isfile('./snr_anaume.npy'):
+    os.remove('./snr_anaume.npy')
+
+np.save('snr_anaume',temp)
     
-with open('./snr10dy_big.bin','wb') as f:
-    big.tofile(f)
-    
+
+
+# In[57]:
+
+
+
 
 
 # In[ ]:
 
 
 ## 以下デバック用セル
-### ファイル変換ができたら、単位を合わせるNCEP > ESTOC
-### SNR,VFLX,UFLXはグリーンランドの上はデータ更新されているか？
-### 南極の近くはブロック状になっているので元データを見てみる。
-#ヒートフラックがみやすい、秋～11月くらいを見てみる
-
-
-# In[1]:
-
-
-fig,ax = plt.subplots()
-aximg = ax.imshow(np.flipud(mask[130:170,275:315]),vmin=-10**-6 ,vmax=10**-6)
-fig.colorbar(aximg,ax = ax)
-plt.show()
-
-
-# In[ ]:
-
-
-plt.imshow(np.flipud(fresh362[32,130:170,275:315]),vmin=-10**-6 ,vmax=10**-6)
-
-
-# In[ ]:
-
-
-print(fresh362[32,130:170,300]*10**6)
-
-
-# In[ ]:
-
-
-print(interp_fresh[32,130:170,299]*10**6)
-
-
-# In[ ]:
-
-
-plt.imshow(np.flipud((1-mask[130:170,275:315])*fresh362[32,130:170,275:315]))
-
-
-# In[ ]:
-
-
-plt.imshow(np.flipud(mask[130:170,275:315]*fresh362[32,130:170,275:315]))
-plt.savefig('1.png')
-
-
-# In[ ]:
-
-
-plt.imshow(np.flipud(fresh362[32,130:170,275:315]))
-
-
-# In[ ]:
-
-
-plt.imshow(np.flipud((ncepmask[130:170,275:315] < 1-10**-10)))
-
-
-# In[ ]:
-
-
-plt.imshow(np.flipud(estoclandmask[130:170,275:315]))
-
-
-# In[ ]:
-
-
-estocweight_old = estocweight.copy()
-index = 32
-resmax = -10000000000
-fresh362_old[index,:,:] = fresh362[index,:,:] ## コレも必要
-estocweight_old[:,:] = estocweight[:,:]
-        
-## estocweight0,360 に更新（右と左両方追加、3/23)
-left = estocweight[:,1]
-right = estocweight[:,360]
-estocweight_old[:,0] = right # 0の前に360の値を更新
-estocweight_old[:,361] = left #360の先に1の値を更新
-## 同じことをFresh362でもやる
-fresh362_old[index,:,0] = fresh362[index,:,360]
-fresh362_old[index,:,361] = fresh362[index,:,1]
-        
-for i in enumerate(landindex[0]): # i = loop index
-    lat = (landindex[0][i[0]])
-    lon = (landindex[1][i[0]])+1
-            
-# 1箇所だけlon=360がある
-## latも値を確認0、179があるとだめ
-    calcflag = estocweight_old[lat-1,lon] + estocweight_old[lat+1,lon] + estocweight_old[lat,lon-1] + estocweight_old[lat,lon+1] 
-    #if lon != 360:
-    calcdata = (fresh362_old[index,lat-1,lon]*estocweight_old[lat-1,lon] + fresh362_old[index,lat+1,lon]*estocweight_old[lat+1,lon]\
-                +fresh362_old[index,lat,lon-1]*estocweight_old[lat,lon-1] + fresh362_old[index,lat,lon+1]*estocweight_old[lat,lon+1])
-                
-    if calcflag > 0:
-        calcweight = calcdata/(calcflag)
-        res = abs(fresh362_old[index,lat,lon]-calcweight)
-        fresh362[index,lat,lon] = calcweight
-        estocweight[lat,lon] = 1
-        resmax = max(resmax,res)
-    
-
-plt.imshow(np.flipud(fresh362[32,130:170,275:315]))
-
-
-# In[ ]:
-
-
-plt.imshow(np.flipud(ncepmask[130:170,275:315]))
-
-
-# In[22]:
-
-
-plt.imshow(np.flipud(estocweight))
-
-
-# In[ ]:
-
-
-plt.imshow(np.flipud(mask[130:170,275:315]*fresh362[32,130:170,275:315]))
-plt.savefig('2.png')
-
-
-# In[26]:
-
-
-first = np.load('./0.npy')
-plt.imshow((first[33,153:160,283:300]),vmin=-10**-6 ,vmax=10**-6)
-
-
-# In[20]:
-
-
-hoge = np.load('./33.npy')
-plt.imshow((hoge[33,153:160,283:300]),vmin=-10**-6 ,vmax=10**-6)
-
-
-# In[22]:
-
-
-hoe = np.load('./34.npy')
-plt.imshow((hoe[33,153:160,283:300]),vmin=-10**-6 ,vmax=10**-6)
-
-
-# In[21]:
-
-
-print(np.all(orig == estocweight_old))
-
-
-# In[20]:
-
-
-orig = np.load('./estocweight_orig.npy')
-plt.imshow(orig)
-
-
-# In[24]:
-
-
-plt.imshow((estocweight[153:160,284:301]),vmin=-10**-6 ,vmax=10**-6)
-plt.savefig('estocweight.png')
-
-
-# In[25]:
-
-
-plt.imshow((checkweight[153:160,283:300]),vmin=-10**-6 ,vmax=10**-6)
-plt.savefig('mask.png')
-
-
-# In[24]:
-
-
-pltest = fresh362[:,:,1:361]
-
-
-# In[18]:
-
-
-pltest = np.fromfile('./fwflux10dy-1948-2023.dat').reshape(2703,180,360)
-
-
-# In[19]:
-
-
-plt.imshow(pltest[0,:,:])
-
-
-# In[26]:
-
-
-plt.imshow(pltest[0,:,:])
-
-
-# In[14]:
-
-
-# maskの図
-plt.imshow(np.flipud(estocweight_orig),vmin=-10**-6 ,vmax=10**-6)
-
-
-# In[ ]:
-
-
-# maskと同位置のestocweightの図
-plt.imshow(np.flipud(estocweight[153:160,284:301]),vmin=-10**-6 ,vmax=10**-6)
-plt.savefig('estocweight.png')
-
-
-# In[ ]:
-
-
-# 初回穴埋め前の図
-plt.imshow((check362[0,153:160,283:300]),vmin=-10**-6 ,vmax=10**-6)
-plt.savefig('2.png')
-
-
-# In[ ]:
-
-
-plt.imshow(np.flipud(fresh362[0,153:160,283:300]),vmin=-10**-6 ,vmax=10**-6)
-plt.savefig('after.png')
-
