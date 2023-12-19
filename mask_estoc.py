@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 ## 穴埋め計算まで終わったデータにESTOCの陸＝0の場所に-1.0e33を入れる
 #＃　これで提出データになる。
 get_ipython().run_line_magic('matplotlib', 'inline')
