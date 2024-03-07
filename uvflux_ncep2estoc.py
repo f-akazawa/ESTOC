@@ -4,6 +4,8 @@
 # In[1]:
 
 
+## freshwaterの流れとは微妙に違うところがあったので、まるっきりFreshwaterに処理をあわせて作成してみるテスト
+
 import xarray as xr
 import numpy as np
 from scipy import interpolate
@@ -49,6 +51,82 @@ yearnum = 2703
 # In[2]:
 
 
+# ESTOCランドマスク作成
+# （155 x 360) 75S-80N 上下にダミーの海を足す
+
+# 元データは75Sから80Nまでなので上下90まで陸地0で埋める
+top = np.full((15,360),0)
+bottom = np.full((10,360),0)
+
+# ESTOCマスクデータを読みこむ（元データは天地逆だがフリップさせてはいない）
+data = np.loadtxt('kmt_data.txt',dtype='int') # 元がテキストなのでキャストも必要
+estocmask = data
+# 上下にダミーの海を足す
+estocmask = np.append(top,estocmask,axis=0)
+estocmask = np.append(estocmask,bottom,axis=0)
+
+estoclandmask = (estocmask == 0)
+
+# NCEPランドマスク作成
+# オリジナルは海が0なので陸地を0に反転させる
+# NCEPデータの陸地を0にする
+# iland９２＊１９３
+
+rev_iland = np.where(iland == 0 ,1,0)
+
+
+# NCEPランドマスクをESTOCランドマスクに合わせる内挿処理
+
+ncepmask = interpolate.interp2d(orig_lon,orig_lat,rev_iland,kind='linear')(xi[:,0],yi[0,:])
+
+
+# In[6]:
+
+
+######################################################
+######################################################
+#ESTOCで１とNCEPで１以外のときループさせる
+#マスクの１℃１℃とデータの入った１℃１℃ができる
+#NCEPのマスクデータをみて１以外のところは０にする
+#ESToCが０以外でNCEPが１以外のところをループ
+#使って良いデータestocのマスクで１のところだけ
+######################################################
+######################################################
+#estoclandmask は陸地True,海FalseのBool配列なので海1、陸0に直す
+## estocweighも０番と
+estocweight = np.where(estoclandmask == True,0,1)
+#######
+## mask の中身はBool
+mask = ((estocweight == 1) & (ncepmask < 1-10**-10)) 
+landindex =  np.where(mask == 1)
+######
+
+## landindexの中身０から(mask==0として確認　5/30)
+####
+for i in enumerate(landindex[0]): # i = loop index
+    lat = (landindex[0][i[0]])
+    lon = (landindex[1][i[0]])
+    estocweight[lat,lon] = 0 # 6/26 =0に戻す
+    ## ここのESTOCWeightを確認する6/26
+    ## この時点ではmask == estocwaightになっている。
+####
+
+##estocweightを拡大する。
+##0の左に３５９の値　３６０の右に元の０の値それぞれ値を入れておく（３・２３）
+left = estocweight[:,0]
+right = estocweight[:,359]
+
+estocweight = np.hstack([(right.reshape(-1,1)),estocweight]) # 0の前に360の値を足す
+estocweight = np.hstack([estocweight,(left.reshape(-1,1))]) #360の先に0の値を足す
+
+# この時点でestocweight 180＊362
+estocweight_old = estocweight.copy() # 計算用に必要なので作っておく
+estocweight_orig = estocweight.copy()
+
+
+# In[7]:
+
+
 ncep_param = xr.open_dataset('01_ESTOC_ForcingData/NCEP_NCAR_Forcing/NCEP/land.sfc.gauss.nc')
 
 # NCEPの海陸マスクで陸の値で海の値を埋める処理
@@ -63,7 +141,13 @@ lsmsk = 1 - lsmsk
 ## この時点でデータは上が南
 
 
-# In[3]:
+# In[ ]:
+
+
+
+
+
+# In[8]:
 
 
 ## ESTOCマスク専用を用意するxi,yiが変わる
@@ -79,10 +163,23 @@ vflx = np.fromfile('vflx10dy.dat').reshape(yearnum,94,192)
 
 # landmask
 # fresh water では計算式があったが、momentum fluxでは無い
+
+
+# In[9]:
+
+
 # *10は単位換算
 uflux = uflx * 10
 vflux = vflx * 10
 
+#　０番目の列をコピーして１９３番目に追加する、画面端の処理
+addzero = uflux[:,:,0].reshape(yearnum,94,1) # 0番目の列を取り出して2次元＞3次元に変換
+uflux193 = np.append(uflux,addzero,axis=2) # axis=0奥行き方向、1行方向、2列方向
+
+#同上
+addzero = vflux[:,:,0].reshape(yearnum,94,1) # 0番目の列を取り出して2次元＞3次元に変換
+vflux193 = np.append(vflux,addzero,axis=2) # axis=0奥行き方向、1行方向、2列方向
+
 
 # In[ ]:
 
@@ -90,18 +187,36 @@ vflux = vflx * 10
 
 
 
-# In[4]:
+# In[ ]:
 
 
-## データは読んだらフリップ
+
+
+
+# In[10]:
+
+
+## uflx10dy,vflx10dyデータは北が上なので読んだらフリップ
 ## 提出データは南が0で上になっている
 
-# Y軸（緯度）だけを上下反転します。
-uflux = np.flip(uflux, axis=1)
-vflux = np.flip(vflux, axis=1)
+## NCEPデータは読んだら必ずフリップ(4/4)
+## 提出データは南が0で上になっているため
+index = 0
+while index < yearnum:
+    vflux193[index,:,:] = np.flipud(vflux193[index,:,:])
+    index += 1
     
 
-##　フリップさせて、このデータは上が南になる
+
+# In[11]:
+
+
+## NCEPデータは読んだら必ずフリップ(4/4)
+## 提出データは南が0で上になっているため
+index = 0
+while index < yearnum:
+    uflux193[index,:,:] = np.flipud(uflux193[index,:,:])
+    index += 1
 
 
 # In[ ]:
@@ -110,98 +225,23 @@ vflux = np.flip(vflux, axis=1)
 
 
 
-# In[5]:
+# In[12]:
 
 
-# scとlsmskの形状を確認
-assert uflux.shape == (2703, 94, 192)
-assert vflux.shape ==(2703,94,192)
-assert lsmsk.shape == (94, 192)
+# ilandで陸地だったらfreshの同位置を０にする\n",
+# bool indexで配列(landmask)が返る\n",
+landmask = (iland >= 1)
+# True の部分（地上）を０にする\n",
+index = 0
+while index < yearnum:
+    vflux193[index,:,:][landmask == True] = 0
+    index += 1
 
-## lsmskのサイズも94＊194にする
-lsmsk = np.pad(lsmsk,((0,0),(1,1)),mode='wrap')
-
-# 経度方向に対して360度側と0度側の値を追加
-vflux = np.pad(vflux, ((0, 0), (0, 0), (1, 1)), mode='wrap')
-
-for l in range(1000):  # 1000回で打ち切り(本当はもっと必要かも)
-    resmax = -1.e10  # 収束判定の初期値
-    for lon in range(1, 193):  # 経度方向のループ for 文は終了値を含まないので注意
-        for lat in range(1, 94):  # 緯度方向のループ
-            if lsmsk[lat, lon] == 0:  # NCEP海陸マスクで陸の場合実行
-                if 0< lat <  93 and 0 < lon < 192:
-                    avgf = 0.25 * (vflux[:, lat, lon-1] + vflux[:, lat, lon+1] + vflux[:, lat-1, lon] + vflux[:, lat+1, lon])  # 4点平均
-                    res = np.abs(vflux[:, lat, lon] - avgf)  # 元の値と平均値の差
-                    vflx[:, lat, lon] = avgf  # 元の値を平均値に更新
-                    resmax = max(resmax, np.max(res))  # 収束判定値を更新
-    vflux[:, :, 0] = vflux[:, :, 192]  # 経度方向360度側の値を更新
-    vflux[:, :, 193] = vflux[:, :, 1]  # 経度方向0度側の値を更新
-    if resmax < 1.e-6:  # 収束判定
-        break
-
-# 最後に経度方向の範囲(0～360)を取り出す
-vflux = vflux[:, :, 1:193]
-print('end')
-
-
-# In[ ]:
+### この時点でlandmaskは(94*193)
 
 
 
-
-
-# In[7]:
-
-
-# 経度方向に対して360度側と0度側の値を追加
-uflux = np.pad(uflux, ((0, 0), (0, 0), (1, 1)), mode='wrap')
-
-for l in range(1000):  # 1000回で打ち切り(本当はもっと必要かも)
-    resmax = -1.e10  # 収束判定の初期値
-    for lon in range(1, 193):  # 経度方向のループ for 文は終了値を含まないので注意
-        for lat in range(1, 94):  # 緯度方向のループ
-            if lsmsk[lat, lon] == 0:  # NCEP海陸マスクで陸の場合実行
-                if 0< lat <  93 and 0 < lon < 192:
-                    avgf = 0.25 * (uflux[:, lat, lon-1] + uflux[:, lat, lon+1] + uflux[:, lat-1, lon] + uflux[:, lat+1, lon])  # 4点平均
-                    res = np.abs(uflux[:, lat, lon] - avgf)  # 元の値と平均値の差
-                    uflux[:, lat, lon] = avgf  # 元の値を平均値に更新
-                    resmax = max(resmax, np.max(res))  # 収束判定値を更新
-    uflux[:, :, 0] = uflux[:, :, 192]  # 経度方向360度側の値を更新
-    uflux[:, :, 193] = uflux[:, :, 1]  # 経度方向0度側の値を更新
-    if resmax < 1.e-6:  # 収束判定
-        break
-
-# 最後に経度方向の範囲(0～360)を取り出す
-uflux = uflux[:, :, 1:193]
-print('end')
-
-
-# In[ ]:
-
-
-
-
-
-# In[8]:
-
-
-## uflux,vfluxの193番目に0番を追加する、画面端の処理のため
-
-addzero = uflux[:,:,0].reshape(yearnum,94,1)
-uflux193 = np.append(uflux,addzero,axis=2)
-
-addzero = vflux[:,:,0].reshape(yearnum,94,1)
-vflux193 = np.append(vflux,addzero,axis=2)
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[9]:
+# In[13]:
 
 
 # vfluxを内挿してESTOCサイズに合わせる。
@@ -222,8 +262,10 @@ if __name__ == '__main__':
 print('end')
 
 
-# In[10]:
+# In[14]:
 
+
+# debug用の中間ファイル保存
 
 if os.path.isfile('interp_vflx.npy'):
     os.remove('interp_vflx.npy')
@@ -231,7 +273,124 @@ if os.path.isfile('interp_vflx.npy'):
 np.save('interp_vflx',interp_vflx)
 
 
-# In[11]:
+# In[15]:
+
+
+# 画面端の処理をするために横に1列増やす、左右必要
+addzero = interp_ｖｆｌｘ[:,:,0].reshape(yearnum,180,1) # 0番目の列の値を抜き出して3次元に直す
+add359 = interp_ｖｆｌｘ[:,:,359].reshape(yearnum,180,1) # 360番目の値を抜き出して3次元に直す
+
+vflux362 = np.append(add359,(np.append(interp_vflx,addzero,axis=2)),axis=2)
+
+
+# In[16]:
+
+
+# landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
+# landindex[0] = latitude
+# landindex[1] = longitude
+vflux362_old = vflux362.copy() # 比較用コピー作成 pythonは＝だけだとメモリ共通なので元も代わってしまうため.copy()をつけて別のメモリにコピー
+
+
+for index in range(2703): # ループが遅いのでテストで1年分だけ出してみる、本当は75年分で2703
+
+    estocweight = estocweight_orig.copy() # 10/2
+    
+    
+
+    for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了 
+
+        resmax = -10000000000
+        vflux362_old[index,:,:] = vflux362[index,:,:] ## コレも必要
+        
+        estocweight_old[:,:] = estocweight[:,:] # フラグ１の場所を更新
+        
+        ## estocweight0,360 に更新（右と左両方追加、3/23)
+        left = estocweight[:,1]
+        right = estocweight[:,360]
+        estocweight_old[:,0] = right # 0の前に360の値を更新
+        estocweight_old[:,361] = left #360の先に1の値を更新
+        ## 同じことをFresh362でもやる
+        vflux362_old[index,:,0] = vflux362[index,:,360]
+        vflux362_old[index,:,361] = vflux362[index,:,1]
+        
+        ## ここがズレてる
+        for i in enumerate(landindex[0]): # i = loop index
+            lat = (landindex[0][i[0]])
+            lon = (landindex[1][i[0]])+1 # 6/9
+            ## ループの1回目は０であるはず、ESTOCWEIGHT lat,lon
+            # 1箇所だけlon=360がある
+            
+            ## latも値を確認0、179があるとだめ
+            calcflag = estocweight_old[lat-1,lon] + estocweight_old[lat+1,lon] + estocweight_old[lat,lon-1] + estocweight_old[lat,lon+1] 
+            #if lon != 360:
+            calcdata = (vflux362_old[index,lat-1,lon]*estocweight_old[lat-1,lon] + vflux362_old[index,lat+1,lon]*estocweight_old[lat+1,lon]\
+                            +vflux362_old[index,lat,lon-1]*estocweight_old[lat,lon-1] + vflux362_old[index,lat,lon+1]*estocweight_old[lat,lon+1] )
+
+                
+            if calcflag > 0:
+                calcweight = calcdata/(calcflag)
+                res = abs(vflux362_old[index,lat,lon]-calcweight)
+                vflux362[index,lat,lon] = calcweight
+                estocweight[lat,lon] = 1
+                resmax = max(resmax,res)
+
+            
+        if 0.0000001 > resmax:
+            print('break count =',counter)
+            break
+
+## ファイル書き出しを別セルにする（遅いので）
+print('end')
+
+
+# In[17]:
+
+
+## ファイル出来上がり、陸地に−１，０E33を入れてビッグエンディアンバイナリで書き出して提出用になる
+vflux_finish = vflux362[:,:,1:361]
+
+# 　-1.0e33とビッグエンディアンバイナリは下のセルでやっている
+
+
+# In[18]:
+
+
+
+
+
+# In[19]:
+
+
+if os.path.isfile('vflux_finish.npy'):
+    os.remove('vflux_finish.npy')
+
+np.save('vflux_finish.npy',vflux_finish)
+
+## vflux終わり
+
+
+
+
+## 以下uflux
+
+
+# In[23]:
+
+
+# ilandで陸地だったらfreshの同位置を０にする\n",
+# bool indexで配列(landmask)が返る\n",
+landmask = (iland >= 1)
+# True の部分（地上）を０にする\n",
+index = 0
+while index < yearnum:
+    uflux193[index,:,:][landmask == True] = 0
+    index += 1
+
+### この時点でlandmaskは(94*193)
+
+
+# In[24]:
 
 
 # uflxをESTOCサイズに合わせるため内挿する
@@ -252,13 +411,31 @@ if __name__ == '__main__':
 print('end')
 
 
-# In[12]:
+# In[25]:
 
 
-if os.path.isfile('ingerp_uflx.npy'):
+# debug用の中間ファイル保存
+
+if os.path.isfile('interp_uflx.npy'):
     os.remove('interp_uflx.npy')
-    
+
 np.save('interp_uflx',interp_uflx)
+
+
+# In[26]:
+
+
+# 画面端の処理をするために横に1列増やす、左右必要
+addzero = interp_uｆｌｘ[:,:,0].reshape(yearnum,180,1) # 0番目の列の値を抜き出して3次元に直す
+add359 = interp_uｆｌｘ[:,:,359].reshape(yearnum,180,1) # 360番目の値を抜き出して3次元に直す
+
+uflux362 = np.append(add359,(np.append(interp_uflx,addzero,axis=2)),axis=2)
+
+
+# In[29]:
+
+
+
 
 
 # In[ ]:
@@ -267,7 +444,109 @@ np.save('interp_uflx',interp_uflx)
 
 
 
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+## 一応estocweightフラグを初期化する
+
+
+# In[30]:
+
+
+# landindexは陸地(landmask==True)の座標がタプルのndarray(配列）で返る
+# landindex[0] = latitude
+# landindex[1] = longitude
+uflux362_old = uflux362.copy() # 比較用コピー作成 pythonは＝だけだとメモリ共通なので元も代わってしまうため.copy()をつけて別のメモリにコピー
+
+
+for index in range(2703): # ループが遅いのでテストで1年分だけ出してみる、本当は75年分で2703
+
+    estocweight = estocweight_orig.copy() # 10/2
+
+    
+    for counter in range(1000):# 1000回繰り返す（又は閾値を超えたらループ終了 
+        resmax = -10000000000
+        uflux362_old[index,:,:] = uflux362[index,:,:] ## コレも必要
+        
+        estocweight_old[:,:] = estocweight[:,:] # フラグ１の場所を更新
+        
+        ## estocweight0,360 に更新（右と左両方追加、3/23)
+        left = estocweight[:,1]
+        right = estocweight[:,360]
+        estocweight_old[:,0] = right # 0の前に360の値を更新
+        estocweight_old[:,361] = left #360の先に1の値を更新
+        ## 同じことをFresh362でもやる
+        uflux362_old[index,:,0] = uflux362[index,:,360]
+        uflux362_old[index,:,361] = uflux362[index,:,1]
+        
+        ## ここがズレてる
+        for i in enumerate(landindex[0]): # i = loop index
+            lat = (landindex[0][i[0]])
+            lon = (landindex[1][i[0]])+1 # 6/9
+            ## ループの1回目は０であるはず、ESTOCWEIGHT lat,lon
+            # 1箇所だけlon=360がある
+            
+            ## latも値を確認0、179があるとだめ
+            calcflag = estocweight_old[lat-1,lon] + estocweight_old[lat+1,lon] + estocweight_old[lat,lon-1] + estocweight_old[lat,lon+1] 
+            #if lon != 360:
+            calcdata = (uflux362_old[index,lat-1,lon]*estocweight_old[lat-1,lon] + uflux362_old[index,lat+1,lon]*estocweight_old[lat+1,lon]\
+                            +uflux362_old[index,lat,lon-1]*estocweight_old[lat,lon-1] + uflux362_old[index,lat,lon+1]*estocweight_old[lat,lon+1] )
+
+                
+            if calcflag > 0:
+                calcweight = calcdata/(calcflag)
+                res = abs(uflux362_old[index,lat,lon]-calcweight)
+                uflux362[index,lat,lon] = calcweight
+                estocweight[lat,lon] = 1
+                resmax = max(resmax,res)
+
+                
+        if 0.0000001 > resmax:
+            break
+
+## ファイル書き出しを別セルにする（遅いので）
+print('end')
+
+
+# In[31]:
+
+
+## 1:361で抜き出して、陸地に-1.0e33を入れてビッグエンディアンバイナリで書き出して終わり
+
+uflux_finish = uflux362[:,:,1:361]
+
+
 # In[13]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[20]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[32]:
 
 
 ## estocのmaskデータを作る
@@ -298,11 +577,11 @@ estocmask = np.where(landmask == True,0,1)
 
 
 
-# In[14]:
+# In[33]:
 
 
-interp_uflx[:,estocmask == 0] = -1.0e33
-interp_vflx[:,estocmask == 0] = -1.0e33
+uflux_finish[:,estocmask == 0] = -1.0e33
+vflux_finish[:,estocmask == 0] = -1.0e33
 
 
 # In[ ]:
@@ -311,10 +590,10 @@ interp_vflx[:,estocmask == 0] = -1.0e33
 
 
 
-# In[19]:
+# In[34]:
 
 
-temp = interp_uflx.byteswap()
+temp = uflux_finish.byteswap()
 
 if os.path.isfile('uflux_big.bin'):
     os.remove('uflux_big.bin')
@@ -329,16 +608,46 @@ with open('uflux_big.bin','wb') as f:
 
 
 
-# In[20]:
+# In[22]:
 
 
-temp = interp_vflx.byteswap()
+temp = vflux_finish.byteswap()
 
 if os.path.isfile('vflux_big.bin'):
     os.remove('vflux_big.bin')
     
 with open('vflux_big.bin','wb') as f:
     temp.tofile(f)
+
+
+# In[11]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+## 以下デバッグセル
 
 
 # In[ ]:
